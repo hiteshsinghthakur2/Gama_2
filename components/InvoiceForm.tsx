@@ -1320,7 +1320,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                 height: auto !important;
                 position: static !important;
                 margin: 0 !important;
-                padding: 20mm !important; /* Visual margin inside the page */
+                padding: 1.27cm !important; /* Narrow margin 1.27cm */
                 box-sizing: border-box !important;
             }
             
