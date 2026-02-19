@@ -60,6 +60,7 @@ export interface UserBusinessProfile {
   pan: string;
   bankAccounts: BankAccount[];
   emailTemplate?: string;
+  defaultTerms?: string;
 }
 
 export interface CustomField {

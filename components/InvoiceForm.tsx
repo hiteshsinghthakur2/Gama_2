@@ -54,7 +54,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
       placeOfSupply: 'Delhi (07)',
       bankDetails: userProfile.bankAccounts[0],
       notes: '',
-      terms: '1. For questions concerning this document, please contact Email Address : sales@craftdaddy.in\n2. All the dispute are subject to delhi jurisdiction only',
+      terms: userProfile.defaultTerms || '1. For questions concerning this document, please contact Email Address : sales@craftdaddy.in\n2. All the dispute are subject to delhi jurisdiction only',
       customFields: [],
       discountType: 'fixed',
       discountValue: 0,
@@ -86,6 +86,12 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
 
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(true);
   const [showDiscount, setShowDiscount] = useState(false);
+  const [termsMode, setTermsMode] = useState<'default' | 'custom'>(() => {
+      if (userProfile.defaultTerms && document.terms === userProfile.defaultTerms) return 'default';
+      // If it's a new document (based on ID check or just empty terms) and default terms exist, default to 'default'
+      if (!initialData && userProfile.defaultTerms && (!document.terms || document.terms === userProfile.defaultTerms)) return 'default';
+      return 'custom';
+  });
   
   const isQuotation = mode === 'quotation';
 
@@ -94,6 +100,13 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
         setShowDiscount(true);
     }
   }, [document.discountValue]);
+
+  // Initialize terms if default mode is active and terms are empty or match default
+  useEffect(() => {
+      if (termsMode === 'default' && userProfile.defaultTerms && document.terms !== userProfile.defaultTerms) {
+          setDocument((prev: any) => ({ ...prev, terms: userProfile.defaultTerms }));
+      }
+  }, [termsMode, userProfile.defaultTerms]);
 
   const selectedClient = useMemo(() => clients.find(c => c.id === document.clientId), [clients, document.clientId]);
   
@@ -1027,6 +1040,42 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                  <p className="text-xs text-gray-400">Total (in words)</p>
                  <p>{numberToWords(Math.round(totals.finalTotal))}</p>
              </div>
+          </div>
+
+          {/* Terms & Conditions Section */}
+          <div className="mb-8 bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-bold text-gray-800 text-sm">Terms & Conditions</h3>
+                  <div className="flex bg-white rounded-lg border border-gray-200 p-1">
+                      <button 
+                          onClick={() => {
+                              setTermsMode('default');
+                              setDocument({...document, terms: userProfile.defaultTerms || ''});
+                          }}
+                          className={`px-3 py-1 rounded-md text-xs font-bold transition ${termsMode === 'default' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}
+                      >
+                          Default
+                      </button>
+                      <button 
+                          onClick={() => setTermsMode('custom')}
+                          className={`px-3 py-1 rounded-md text-xs font-bold transition ${termsMode === 'custom' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}
+                      >
+                          Custom
+                      </button>
+                  </div>
+              </div>
+              
+              <textarea 
+                  className={`w-full p-3 border rounded-lg text-sm outline-none transition ${termsMode === 'default' ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white text-gray-800 focus:border-indigo-500'}`}
+                  rows={4}
+                  value={document.terms || ''}
+                  onChange={(e) => setDocument({...document, terms: e.target.value})}
+                  readOnly={termsMode === 'default'}
+                  placeholder="Enter terms and conditions..."
+              />
+              {termsMode === 'default' && !userProfile.defaultTerms && (
+                  <p className="text-xs text-orange-500 mt-2">No default terms configured in Settings.</p>
+              )}
           </div>
 
           <div className="mb-8">

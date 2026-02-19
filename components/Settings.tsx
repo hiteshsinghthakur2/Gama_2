@@ -360,6 +360,31 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
           </div>
         </div>
 
+        {/* Terms and Conditions Settings */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-orange-500 rounded-full"></span>
+            Terms & Conditions
+          </h2>
+          <div className="space-y-4">
+              <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Default Terms and Conditions</label>
+                  <div className="relative">
+                      <textarea 
+                          rows={6}
+                          className="w-full p-3 border rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-100 text-sm font-medium"
+                          value={formData.defaultTerms || ''}
+                          onChange={(e) => setFormData({...formData, defaultTerms: e.target.value})}
+                          placeholder="Enter your default terms and conditions..."
+                      />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                      These terms will be automatically applied to new invoices and quotations. You can override them for individual documents.
+                  </p>
+              </div>
+          </div>
+        </div>
+
         <div className="flex justify-end gap-4 pt-4">
           <button type="submit" disabled={saveStatus === 'saving'} className={`px-10 py-4 rounded-xl font-bold transition shadow-lg flex items-center gap-2 ${saveStatus === 'saved' ? 'bg-emerald-500 text-white' : saveStatus === 'error' ? 'bg-red-600 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
             {saveStatus === 'saving' ? 'Syncing...' : saveStatus === 'saved' ? 'Synced Successfully' : saveStatus === 'error' ? 'Try Again' : 'Apply & Sync Cloud'}
