@@ -184,7 +184,11 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
     setDocument(prev => ({
         ...prev,
         clientId: newClientId,
-        placeOfSupply: newPlaceOfSupply
+        placeOfSupply: newPlaceOfSupply,
+        customFields: [
+            ...(prev.customFields || []),
+            ...(client?.customFields || [])
+        ]
     }));
   };
 
@@ -1070,6 +1074,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                       <p className="uppercase">{selectedClient?.address.country} - {selectedClient?.address.pincode}</p>
                       <p className="mt-2"><span className="font-bold">GSTIN:</span> <span className="text-[#5c2c90]">{selectedClient?.gstin || 'N/A'}</span></p>
                       <p><span className="font-bold">PAN:</span> {selectedClient?.pan || 'N/A'}</p>
+                      {selectedClient?.phone && <p><span className="font-bold">Phone:</span> {selectedClient.phone}</p>}
                   </div>
               </div>
           </div>
