@@ -157,12 +157,12 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
             <span className="w-1.5 h-6 bg-emerald-500 rounded-full"></span>
             General Information
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-3">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Legal Business Name</label>
               <input required type="text" className="w-full p-3 border rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-100 font-bold" value={formData.companyName} onChange={e => setFormData({ ...formData, companyName: e.target.value })} />
             </div>
-            <div className="md:col-span-2">
+            <div className="md:col-span-3">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Registered Address</label>
               <input required type="text" className="w-full p-3 border rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-100" value={formData.address.street} onChange={e => updateAddress('street', e.target.value)} />
             </div>
@@ -178,6 +178,10 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                 }}>
                 {INDIAN_STATES.map(s => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
               </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Pin Code</label>
+              <input required type="text" maxLength={6} className="w-full p-3 border rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-100 font-mono" value={formData.address.pincode} onChange={e => updateAddress('pincode', e.target.value)} />
             </div>
           </div>
         </div>
