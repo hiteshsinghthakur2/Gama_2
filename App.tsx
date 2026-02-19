@@ -162,7 +162,7 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard invoices={invoices} leads={leads} />;
       case 'invoices':
-        if (editingInvoice) return <InvoiceForm mode="invoice" userProfile={userProfile} clients={clients} onSave={handleSaveInvoice} onCancel={() => setEditingInvoice(null)} initialData={editingInvoice} />;
+        if (editingInvoice) return <InvoiceForm mode="invoice" userProfile={userProfile} clients={clients} onSave={handleSaveInvoice} onCancel={() => setEditingInvoice(null)} initialData={editingInvoice} existingInvoices={invoices} />;
         return (
           <div className="p-4 md:p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">

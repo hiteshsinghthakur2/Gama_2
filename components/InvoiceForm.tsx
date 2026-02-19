@@ -22,6 +22,7 @@ interface DocumentFormProps {
   initialData?: Invoice | Quotation;
   mode?: 'invoice' | 'quotation';
   onConvertToInvoice?: (quotation: Quotation) => void;
+  existingInvoices?: Invoice[];
 }
 
 const InvoiceForm: React.FC<DocumentFormProps> = ({ 
@@ -31,7 +32,8 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
   onCancel, 
   initialData, 
   mode = 'invoice',
-  onConvertToInvoice
+  onConvertToInvoice,
+  existingInvoices = []
 }) => {
   // Use a generic state that matches the structure of both Invoice and Quotation
   // We'll treat 'dueDate' as 'validUntil' when in quotation mode
@@ -300,6 +302,18 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
   };
 
   const handleSave = () => {
+     // Check for duplicate invoice number
+     if (mode === 'invoice' && existingInvoices.length > 0) {
+         const isDuplicate = existingInvoices.some(inv => 
+             inv.number === document.number && inv.id !== document.id
+         );
+         
+         if (isDuplicate) {
+             alert(`Invoice number "${document.number}" already exists. Please use a unique invoice number.`);
+             return;
+         }
+     }
+
      // Format data back to specific type structure if needed
      const finalData = { ...document };
      if (isQuotation) {
@@ -311,9 +325,21 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
 
   const handlePrint = () => {
     if (window) {
+        // Set document title for PDF filename
+        const originalTitle = window.document.title;
+        const clientName = selectedClient?.name || 'Client';
+        const docNumber = document.number || 'Draft';
+        window.document.title = `${clientName}_${docNumber}`;
+
         window.focus();
         setTimeout(() => {
             window.print();
+            // Restore title after print dialog closes (or user interacts)
+            // Note: window.print() is blocking in some browsers, but not all.
+            // We'll restore it after a delay or let it stay until navigation.
+            setTimeout(() => {
+                window.document.title = originalTitle;
+            }, 1000);
         }, 100);
     }
   };
