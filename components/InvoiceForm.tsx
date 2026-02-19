@@ -181,15 +181,30 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
         }
     }
 
-    setDocument(prev => ({
-        ...prev,
-        clientId: newClientId,
-        placeOfSupply: newPlaceOfSupply,
-        customFields: [
-            ...(prev.customFields || []),
-            ...(client?.customFields || [])
-        ]
-    }));
+    setDocument(prev => {
+        const newClientFields = client?.customFields || [];
+        const existingFields = prev.customFields || [];
+        
+        // Merge fields: Keep existing fields unless they clash with new client fields (by label), 
+        // in which case we prefer the new client's value (or we could keep existing).
+        // Here we'll append new fields that don't exist.
+        
+        const mergedFields = [...existingFields];
+        
+        newClientFields.forEach(ncf => {
+            const exists = mergedFields.some(ef => ef.label === ncf.label);
+            if (!exists) {
+                mergedFields.push(ncf);
+            }
+        });
+
+        return {
+            ...prev,
+            clientId: newClientId,
+            placeOfSupply: newPlaceOfSupply,
+            customFields: mergedFields
+        };
+    });
   };
 
   const updateItem = (id: string, field: keyof LineItem, value: any) => {
@@ -1075,6 +1090,9 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                       <p className="mt-2"><span className="font-bold">GSTIN:</span> <span className="text-[#5c2c90]">{selectedClient?.gstin || 'N/A'}</span></p>
                       <p><span className="font-bold">PAN:</span> {selectedClient?.pan || 'N/A'}</p>
                       {selectedClient?.phone && <p><span className="font-bold">Phone:</span> {selectedClient.phone}</p>}
+                      {selectedClient?.customFields?.map((field, i) => (
+                          <p key={i}><span className="font-bold">{field.label}:</span> {field.value}</p>
+                      ))}
                   </div>
               </div>
           </div>
