@@ -182,6 +182,151 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
           </div>
         </div>
 
+        {/* Bank Accounts */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-purple-500 rounded-full"></span>
+            Bank Accounts
+          </h2>
+          
+          <div className="space-y-4 mb-6">
+            {formData.bankAccounts.map((account, index) => (
+              <div key={index} className="p-4 border border-gray-200 rounded-xl bg-gray-50 flex justify-between items-start group">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
+                  <div>
+                    <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block">Bank Name</span>
+                    <span className="font-bold text-gray-800">{account.bankName}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block">Account Number</span>
+                    <span className="font-mono text-gray-700">{account.accountNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block">IFSC Code</span>
+                    <span className="font-mono text-gray-700">{account.ifscCode}</span>
+                  </div>
+                   <div>
+                    <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block">Account Name</span>
+                    <span className="text-gray-700">{account.accountName}</span>
+                  </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    const newAccounts = [...formData.bankAccounts];
+                    newAccounts.splice(index, 1);
+                    setFormData({ ...formData, bankAccounts: newAccounts });
+                  }}
+                  className="text-gray-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+              </div>
+            ))}
+            
+            {formData.bankAccounts.length === 0 && (
+              <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                <p className="text-gray-400 text-sm font-medium">No bank accounts added yet.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Add New Bank Account</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <input 
+                  type="text" 
+                  placeholder="Bank Name (e.g. HDFC Bank)"
+                  className="w-full p-3 border rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-200 text-sm"
+                  id="new-bank-name"
+                />
+              </div>
+              <div>
+                <input 
+                  type="text" 
+                  placeholder="Account Number"
+                  className="w-full p-3 border rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-200 text-sm font-mono"
+                  id="new-account-number"
+                />
+              </div>
+              <div>
+                <input 
+                  type="text" 
+                  placeholder="IFSC Code"
+                  className="w-full p-3 border rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-200 text-sm font-mono uppercase"
+                  id="new-ifsc"
+                />
+              </div>
+              <div>
+                <input 
+                  type="text" 
+                  placeholder="Account Holder Name"
+                  className="w-full p-3 border rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-200 text-sm"
+                  id="new-account-name"
+                />
+              </div>
+               <div>
+                <input 
+                  type="text" 
+                  placeholder="Branch Name"
+                  className="w-full p-3 border rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-200 text-sm"
+                  id="new-branch-name"
+                />
+              </div>
+              <div>
+                <select 
+                  className="w-full p-3 border rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-200 text-sm"
+                  id="new-account-type"
+                >
+                  <option value="Current">Current</option>
+                  <option value="Savings">Savings</option>
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    const bankNameInput = document.getElementById('new-bank-name') as HTMLInputElement;
+                    const accNumberInput = document.getElementById('new-account-number') as HTMLInputElement;
+                    const ifscInput = document.getElementById('new-ifsc') as HTMLInputElement;
+                    const accNameInput = document.getElementById('new-account-name') as HTMLInputElement;
+                    const branchInput = document.getElementById('new-branch-name') as HTMLInputElement;
+                    const typeInput = document.getElementById('new-account-type') as HTMLSelectElement;
+
+                    if (bankNameInput.value && accNumberInput.value && ifscInput.value && accNameInput.value) {
+                      const newAccount = {
+                        bankName: bankNameInput.value,
+                        accountNumber: accNumberInput.value,
+                        ifscCode: ifscInput.value,
+                        accountName: accNameInput.value,
+                        branchName: branchInput.value,
+                        accountType: typeInput.value
+                      };
+                      
+                      setFormData({
+                        ...formData,
+                        bankAccounts: [...formData.bankAccounts, newAccount]
+                      });
+
+                      // Clear inputs
+                      bankNameInput.value = '';
+                      accNumberInput.value = '';
+                      ifscInput.value = '';
+                      accNameInput.value = '';
+                      branchInput.value = '';
+                    }
+                  }}
+                  className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition shadow-lg flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                  Add Bank Account
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Email Settings */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">

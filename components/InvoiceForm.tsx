@@ -508,6 +508,25 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                           <option>{userProfile.companyName}</option>
                       </select>
                     </div>
+                    
+                    <div className="mb-4">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Bank Account</label>
+                        <select 
+                            className="border border-gray-200 rounded-md w-full p-2 bg-white text-sm focus:border-indigo-500 outline-none"
+                            value={document.bankDetails?.accountNumber || ''}
+                            onChange={(e) => {
+                                const selectedAccount = userProfile.bankAccounts.find(acc => acc.accountNumber === e.target.value);
+                                setDocument({ ...document, bankDetails: selectedAccount });
+                            }}
+                        >
+                            {userProfile.bankAccounts.map((acc, idx) => (
+                                <option key={idx} value={acc.accountNumber}>
+                                    {acc.bankName} - {acc.accountNumber}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                     {/* Display User Profile Details in Editor */}
                     <div className="text-xs text-gray-600 space-y-3 mt-4">
                         <div className="grid grid-cols-[100px_1fr]">
