@@ -225,20 +225,7 @@ const App: React.FC = () => {
           </div>
         );
       case 'leads': return <LeadBoard leads={leads} setLeads={setLeads} />;
-      case 'clients': return (
-        <ClientList 
-          clients={clients} 
-          onSave={handleSaveClient} 
-          onDelete={(id) => setClients(prev => prev.filter(c => c.id !== id))} 
-          activeClient={editingClient} 
-          onClearActiveClient={() => {
-            setEditingClient(null);
-            if (editingInvoice) setActiveTab('invoices');
-            else if (editingQuotation) setActiveTab('quotations');
-          }}
-          cancelLabel={editingInvoice ? "Back to Invoice" : editingQuotation ? "Back to Quotation" : undefined}
-        />
-      );
+      case 'clients': return <ClientList clients={clients} onSave={handleSaveClient} onDelete={(id) => setClients(prev => prev.filter(c => c.id !== id))} activeClient={editingClient} onClearActiveClient={() => setEditingClient(null)} />;
       case 'settings': return <Settings profile={userProfile} onSave={setUserProfile} />;
       default: return <Dashboard invoices={invoices} leads={leads} />;
     }
