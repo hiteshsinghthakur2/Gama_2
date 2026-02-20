@@ -11,9 +11,11 @@ interface ClientListProps {
   clients: Client[];
   onSave: (client: Client) => void;
   onDelete: (id: string) => void;
+  activeClient?: Client | null;
+  onClearActiveClient?: () => void;
 }
 
-const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete }) => {
+const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, activeClient, onClearActiveClient }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isFetchingGST, setIsFetchingGST] = useState(false);
@@ -41,11 +43,26 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete }) =>
 
   const [formData, setFormData] = useState<Client>(initialClient);
 
+  // Handle external active client (e.g. from InvoiceForm)
+  useEffect(() => {
+    if (activeClient) {
+        setFormData(activeClient);
+        setEditingClient(activeClient);
+        setClientType(activeClient.gstin ? 'gst' : 'unregistered');
+        setShowForm(true);
+    }
+  }, [activeClient]);
+
   // Reset simulation flag when form opens
   useEffect(() => {
     if (showForm) {
         setIsDataSimulated(false);
         setGstError(null);
+    } else {
+        // When form closes, clear the external active client if it exists
+        if (activeClient && onClearActiveClient) {
+            onClearActiveClient();
+        }
     }
   }, [showForm]);
 

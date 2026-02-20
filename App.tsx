@@ -44,6 +44,7 @@ const App: React.FC = () => {
 
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
 
   // --- Sync Listener ---
   useEffect(() => {
@@ -162,7 +163,7 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard invoices={invoices} leads={leads} />;
       case 'invoices':
-        if (editingInvoice) return <InvoiceForm mode="invoice" userProfile={userProfile} clients={clients} onSave={handleSaveInvoice} onCancel={() => setEditingInvoice(null)} initialData={editingInvoice} existingInvoices={invoices} />;
+        if (editingInvoice) return <InvoiceForm mode="invoice" userProfile={userProfile} clients={clients} onSave={handleSaveInvoice} onCancel={() => setEditingInvoice(null)} initialData={editingInvoice} existingInvoices={invoices} onEditClient={(client) => { setEditingClient(client); setActiveTab('clients'); }} />;
         return (
           <div className="p-4 md:p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -193,7 +194,7 @@ const App: React.FC = () => {
           </div>
         );
       case 'quotations':
-        if (editingQuotation) return <InvoiceForm mode="quotation" userProfile={userProfile} clients={clients} onSave={handleSaveQuotation} onCancel={() => setEditingQuotation(null)} initialData={editingQuotation} onConvertToInvoice={handleConvertToInvoice} />;
+        if (editingQuotation) return <InvoiceForm mode="quotation" userProfile={userProfile} clients={clients} onSave={handleSaveQuotation} onCancel={() => setEditingQuotation(null)} initialData={editingQuotation} onConvertToInvoice={handleConvertToInvoice} onEditClient={(client) => { setEditingClient(client); setActiveTab('clients'); }} />;
         return (
           <div className="p-4 md:p-6 lg:p-8">
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -224,7 +225,7 @@ const App: React.FC = () => {
           </div>
         );
       case 'leads': return <LeadBoard leads={leads} setLeads={setLeads} />;
-      case 'clients': return <ClientList clients={clients} onSave={handleSaveClient} onDelete={(id) => setClients(prev => prev.filter(c => c.id !== id))} />;
+      case 'clients': return <ClientList clients={clients} onSave={handleSaveClient} onDelete={(id) => setClients(prev => prev.filter(c => c.id !== id))} activeClient={editingClient} onClearActiveClient={() => setEditingClient(null)} />;
       case 'settings': return <Settings profile={userProfile} onSave={setUserProfile} />;
       default: return <Dashboard invoices={invoices} leads={leads} />;
     }

@@ -23,6 +23,7 @@ interface DocumentFormProps {
   mode?: 'invoice' | 'quotation';
   onConvertToInvoice?: (quotation: Quotation) => void;
   existingInvoices?: Invoice[];
+  onEditClient?: (client: Client) => void;
 }
 
 const InvoiceForm: React.FC<DocumentFormProps> = ({ 
@@ -33,7 +34,8 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
   initialData, 
   mode = 'invoice',
   onConvertToInvoice,
-  existingInvoices = []
+  existingInvoices = [],
+  onEditClient
 }) => {
   // Use a generic state that matches the structure of both Invoice and Quotation
   // We'll treat 'dueDate' as 'validUntil' when in quotation mode
@@ -594,7 +596,19 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                      <h3 className="text-gray-800 font-bold text-base border-b-2 border-gray-800 pb-0.5 inline-block">
                         {isQuotation ? 'Quotation For' : 'Billed To'}
                     </h3>
-                    <span className="text-xs text-gray-400">Client's Details</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">Client's Details</span>
+                        {selectedClient && onEditClient && (
+                            <button 
+                                onClick={() => onEditClient(selectedClient)}
+                                className="text-indigo-600 hover:text-indigo-800 text-xs font-bold flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded hover:bg-indigo-100 transition"
+                                title="Edit Client Details"
+                            >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                Edit
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className="p-5 flex-1 bg-white">
                     <div className="mb-4">
