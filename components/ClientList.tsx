@@ -13,9 +13,10 @@ interface ClientListProps {
   onDelete: (id: string) => void;
   activeClient?: Client | null;
   onClearActiveClient?: () => void;
+  cancelLabel?: string;
 }
 
-const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, activeClient, onClearActiveClient }) => {
+const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, activeClient, onClearActiveClient, cancelLabel }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isFetchingGST, setIsFetchingGST] = useState(false);
@@ -209,6 +210,17 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
 
       {showForm ? (
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+          {cancelLabel && (
+            <button 
+              onClick={() => setShowForm(false)}
+              className="mb-4 text-gray-500 hover:text-gray-800 flex items-center gap-1 font-medium transition group text-sm"
+            >
+                <div className="bg-gray-100 p-1 rounded-full group-hover:bg-gray-200 transition">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                </div>
+                {cancelLabel}
+            </button>
+          )}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-black text-gray-900">{editingClient ? 'Edit Client Profile' : 'New Client Onboarding'}</h2>
             <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600 transition">
@@ -449,7 +461,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
                 onClick={() => setShowForm(false)}
                 className="flex-1 py-4 border border-gray-200 rounded-xl text-gray-600 font-bold hover:bg-gray-50 transition"
               >
-                Cancel
+                {cancelLabel || 'Cancel'}
               </button>
               <button 
                 type="submit" 
