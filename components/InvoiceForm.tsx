@@ -1330,12 +1330,12 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                           </div>
                       )}
 
-                      {totals.additionalChargesTotal > 0 && (
-                          <div className="flex justify-between text-gray-600">
-                              <span>Addl. Charges</span>
-                              <span className="font-medium">₹{totals.additionalChargesTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                      {document.additionalCharges && document.additionalCharges.length > 0 && document.additionalCharges.map((charge: AdditionalCharge) => (
+                          <div key={charge.id} className="flex justify-between text-gray-600">
+                              <span>{charge.label || 'Additional Charge'}</span>
+                              <span className="font-medium">₹{(charge.amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                           </div>
-                      )}
+                      ))}
                       
                       {totals.discountAmount > 0 && (
                           <div className="flex justify-between text-emerald-600">
