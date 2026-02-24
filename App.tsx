@@ -5,6 +5,8 @@ import {
   InvoiceStatus, 
   Quotation,
   QuotationStatus,
+  DeliveryChallan,
+  DeliveryChallanStatus,
   Lead, 
   LeadStatus, 
   Client, 
@@ -16,6 +18,7 @@ import Dashboard from './components/Dashboard';
 import InvoiceList from './components/InvoiceList';
 import InvoiceForm from './components/InvoiceForm';
 import QuotationList from './components/QuotationList';
+import DeliveryChallanList from './components/DeliveryChallanList';
 import LeadBoard from './components/LeadBoard';
 import ClientList from './components/ClientList';
 import Sidebar from './components/Sidebar';
@@ -24,13 +27,14 @@ import Settings from './components/Settings';
 const STORAGE_KEYS = {
   INVOICES: 'bos_cloud_invoices',
   QUOTATIONS: 'bos_cloud_quotations',
+  DELIVERY_CHALLANS: 'bos_cloud_delivery_challans',
   LEADS: 'bos_cloud_leads',
   CLIENTS: 'bos_cloud_clients',
   PROFILE: 'bos_cloud_user_profile'
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'leads' | 'clients' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'settings'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [syncState, setSyncState] = useState(StorageService.getSyncInfo());
@@ -39,11 +43,13 @@ const App: React.FC = () => {
   const [userProfile, setUserProfile] = useState<UserBusinessProfile>(INITIAL_USER_PROFILE);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [deliveryChallans, setDeliveryChallans] = useState<DeliveryChallan[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
 
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
+  const [editingDeliveryChallan, setEditingDeliveryChallan] = useState<DeliveryChallan | null>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
   // --- Sync Listener ---
@@ -57,10 +63,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const hydrate = async () => {
       setIsLoading(true);
-      const [p, i, q, l, c] = await Promise.all([
+      const [p, i, q, dc, l, c] = await Promise.all([
         StorageService.load(STORAGE_KEYS.PROFILE, INITIAL_USER_PROFILE),
         StorageService.load(STORAGE_KEYS.INVOICES, []),
         StorageService.load(STORAGE_KEYS.QUOTATIONS, []),
+        StorageService.load(STORAGE_KEYS.DELIVERY_CHALLANS, []),
         StorageService.load(STORAGE_KEYS.LEADS, []),
         StorageService.load(STORAGE_KEYS.CLIENTS, [])
       ]);
@@ -68,6 +75,7 @@ const App: React.FC = () => {
       setUserProfile(p);
       setInvoices(i);
       setQuotations(q);
+      setDeliveryChallans(dc);
       setLeads(l.length ? l : [
         { id: 'lead-1', name: 'John Doe', company: 'Nexus Inc', value: 50000, status: LeadStatus.NEW, createdAt: '2024-05-15' },
         { id: 'lead-2', name: 'Jane Smith', company: 'Global SCM', value: 120000, status: LeadStatus.PROPOSAL, createdAt: '2024-05-14' },
@@ -89,6 +97,7 @@ const App: React.FC = () => {
   // --- Persistence Effects ---
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.INVOICES, invoices); }, [invoices, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.QUOTATIONS, quotations); }, [quotations, isLoading]);
+  useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.DELIVERY_CHALLANS, deliveryChallans); }, [deliveryChallans, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.LEADS, leads); }, [leads, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.CLIENTS, clients); }, [clients, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.PROFILE, userProfile); }, [userProfile, isLoading]);
@@ -116,6 +125,14 @@ const App: React.FC = () => {
       return exists ? prev.map(q => q.id === quotation.id ? quotation : q) : [quotation, ...prev];
     });
     setEditingQuotation(null);
+  };
+
+  const handleSaveDeliveryChallan = (challan: DeliveryChallan) => {
+    setDeliveryChallans(prev => {
+      const exists = prev.find(dc => dc.id === challan.id);
+      return exists ? prev.map(dc => dc.id === challan.id ? challan : dc) : [challan, ...prev];
+    });
+    setEditingDeliveryChallan(null);
   };
 
   const handleSaveClient = (client: Client) => {
@@ -224,6 +241,35 @@ const App: React.FC = () => {
             <QuotationList quotations={quotations} clients={clients} userProfile={userProfile} onEdit={setEditingQuotation} onDuplicate={(qt) => setQuotations([{...qt, id: `qt-${Date.now()}`, number: `COPY-${qt.number}`}, ...quotations])} onUpdateStatus={(id, status) => setQuotations(prev => prev.map(q => q.id === id ? {...q, status} : q))} onDelete={(id) => setQuotations(prev => prev.filter(q => q.id !== id))} onConvertToInvoice={handleConvertToInvoice} />
           </div>
         );
+      case 'delivery-challans':
+        if (editingDeliveryChallan) return <InvoiceForm mode="delivery-challan" userProfile={userProfile} clients={clients} onSave={handleSaveDeliveryChallan} onCancel={() => setEditingDeliveryChallan(null)} initialData={editingDeliveryChallan} onEditClient={(client) => { setEditingClient(client); setActiveTab('clients'); }} />;
+        return (
+          <div className="p-4 md:p-6 lg:p-8">
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold">Delivery Challans</h1>
+                <p className="text-xs md:text-sm text-gray-500">Transport documents for {userProfile.companyName}</p>
+              </div>
+              <button 
+                onClick={() => setEditingDeliveryChallan({ 
+                  id: `dc-${Date.now()}`, 
+                  number: `DC${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`, 
+                  date: new Date().toISOString().split('T')[0], 
+                  status: DeliveryChallanStatus.DRAFT, 
+                  clientId: clients[0]?.id || '', 
+                  items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
+                  placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
+                  terms: '1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.'
+                })}
+                className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                New Challan
+              </button>
+            </div>
+            <DeliveryChallanList challans={deliveryChallans} clients={clients} userProfile={userProfile} onEdit={setEditingDeliveryChallan} onDuplicate={(dc) => setDeliveryChallans([{...dc, id: `dc-${Date.now()}`, number: `COPY-${dc.number}`}, ...deliveryChallans])} onUpdateStatus={(id, status) => setDeliveryChallans(prev => prev.map(dc => dc.id === id ? {...dc, status} : dc))} onDelete={(id) => setDeliveryChallans(prev => prev.filter(dc => dc.id !== id))} />
+          </div>
+        );
       case 'leads': return <LeadBoard leads={leads} setLeads={setLeads} />;
       case 'clients': return (
         <ClientList 
@@ -235,8 +281,9 @@ const App: React.FC = () => {
             setEditingClient(null);
             if (editingInvoice) setActiveTab('invoices');
             else if (editingQuotation) setActiveTab('quotations');
+            else if (editingDeliveryChallan) setActiveTab('delivery-challans');
           }}
-          cancelLabel={editingInvoice ? "Back to Invoice" : editingQuotation ? "Back to Quotation" : undefined}
+          cancelLabel={editingInvoice ? "Back to Invoice" : editingQuotation ? "Back to Quotation" : editingDeliveryChallan ? "Back to Challan" : undefined}
         />
       );
       case 'settings': return <Settings profile={userProfile} onSave={setUserProfile} />;
@@ -252,7 +299,7 @@ const App: React.FC = () => {
           activeTab={activeTab} 
           logoUrl={userProfile.logoUrl}
           companyName={userProfile.companyName}
-          onTabChange={(tab) => { setActiveTab(tab); setEditingInvoice(null); setEditingQuotation(null); setIsSidebarOpen(false); }} 
+          onTabChange={(tab) => { setActiveTab(tab); setEditingInvoice(null); setEditingQuotation(null); setEditingDeliveryChallan(null); setIsSidebarOpen(false); }} 
           onClose={() => setIsSidebarOpen(false)}
           syncState={syncState}
         />

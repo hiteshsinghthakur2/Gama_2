@@ -3,11 +3,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Invoice, 
   Quotation, 
+  DeliveryChallan,
   Client, 
   UserBusinessProfile, 
   LineItem, 
   InvoiceStatus,
   QuotationStatus,
+  DeliveryChallanStatus,
   CustomField,
   AdditionalCharge
 } from '../types';
@@ -19,8 +21,8 @@ interface DocumentFormProps {
   clients: Client[];
   onSave: (document: any) => void;
   onCancel: () => void;
-  initialData?: Invoice | Quotation;
-  mode?: 'invoice' | 'quotation';
+  initialData?: Invoice | Quotation | DeliveryChallan;
+  mode?: 'invoice' | 'quotation' | 'delivery-challan';
   onConvertToInvoice?: (quotation: Quotation) => void;
   existingInvoices?: Invoice[];
   onEditClient?: (client: Client) => void;
@@ -44,11 +46,13 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
       id: `${mode === 'invoice' ? 'inv' : 'qt'}-${Date.now()}`,
       number: mode === 'invoice' 
         ? `CD${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`
-        : `QT${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`,
+        : mode === 'quotation'
+          ? `QT${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`
+          : `DC${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`,
       date: new Date().toISOString().split('T')[0],
       dueDate: '', // used as validUntil for quotation
       poNumber: '',
-      status: mode === 'invoice' ? InvoiceStatus.DRAFT : QuotationStatus.DRAFT,
+      status: mode === 'invoice' ? InvoiceStatus.DRAFT : mode === 'quotation' ? QuotationStatus.DRAFT : DeliveryChallanStatus.DRAFT,
       clientId: clients[0]?.id || '',
       items: [
         { id: '1', description: 'REFLECTIVE JACKET', hsn: '6210', qty: 225, rate: 100, taxRate: 5 },
@@ -96,6 +100,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
   });
   
   const isQuotation = mode === 'quotation';
+  const isDeliveryChallan = mode === 'delivery-challan';
 
   useEffect(() => {
     if (document.discountValue && document.discountValue > 0) {
@@ -421,7 +426,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           <div className="flex flex-col items-center mb-10 group relative">
               <div className="flex items-center gap-2 border-b-2 border-dashed border-gray-300 pb-1 mb-1 hover:border-gray-400 transition">
                 <h1 className="text-3xl font-extrabold text-gray-900 cursor-text">
-                    {isQuotation ? 'Quotation' : 'Tax Invoice'}
+                    {isQuotation ? 'Quotation' : isDeliveryChallan ? 'Delivery Challan' : 'Tax Invoice'}
                 </h1>
                 <span className="text-gray-400">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -435,7 +440,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
               <div className="flex-1 space-y-5 max-w-sm">
                 <div className="grid grid-cols-[110px_1fr] items-center gap-2 group">
                     <label className="text-gray-500 font-semibold underline decoration-dotted cursor-help">
-                        {isQuotation ? 'Quotation No' : 'Invoice No'}<span className="text-red-500">*</span>
+                        {isQuotation ? 'Quotation No' : isDeliveryChallan ? 'Challan No' : 'Invoice No'}<span className="text-red-500">*</span>
                     </label>
                     <input 
                       type="text" 
@@ -447,7 +452,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
 
                 <div className="grid grid-cols-[110px_1fr] items-center gap-2">
                     <label className="text-gray-500 font-semibold underline decoration-dotted cursor-help">
-                        {isQuotation ? 'Quotation Date' : 'Invoice Date'}<span className="text-red-500">*</span>
+                        {isQuotation ? 'Quotation Date' : isDeliveryChallan ? 'Challan Date' : 'Invoice Date'}<span className="text-red-500">*</span>
                     </label>
                     <input 
                       type="date" 
@@ -461,7 +466,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                 
                 <div className="grid grid-cols-[110px_1fr] items-center gap-2">
                     <label className="text-gray-500 font-semibold underline decoration-dotted cursor-help">
-                        {isQuotation ? 'Valid Till Date' : 'Due Date'}
+                        {isQuotation ? 'Valid Till Date' : isDeliveryChallan ? 'Delivery Date' : 'Due Date'}
                     </label>
                     <input 
                       type="date" 
@@ -539,7 +544,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
               <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col h-full bg-white shadow-sm transition duration-300">
                 <div className="px-5 py-3 border-b border-gray-100 bg-white flex justify-between items-center">
                     <h3 className="text-gray-800 font-bold text-base border-b-2 border-gray-800 pb-0.5 inline-block">
-                        {isQuotation ? 'Quotation From' : 'Billed By'}
+                        {isQuotation ? 'Quotation From' : isDeliveryChallan ? 'Consignor' : 'Billed By'}
                     </h3>
                     <span className="text-xs text-gray-400">Your Details</span>
                 </div>
@@ -594,7 +599,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
               <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col h-full bg-white shadow-sm transition duration-300">
                 <div className="px-5 py-3 border-b border-gray-100 bg-white flex justify-between items-center">
                      <h3 className="text-gray-800 font-bold text-base border-b-2 border-gray-800 pb-0.5 inline-block">
-                        {isQuotation ? 'Quotation For' : 'Billed To'}
+                        {isQuotation ? 'Quotation For' : isDeliveryChallan ? 'Consignee' : 'Billed To'}
                     </h3>
                     <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-400">Client's Details</span>
@@ -1143,18 +1148,18 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           <div className="flex justify-between items-start mb-6">
               <div className="flex flex-col gap-1">
                   <h1 className="text-4xl font-medium text-[#5c2c90] mb-4">
-                      {isQuotation ? 'Quotation' : 'Tax Invoice'}
+                      {isQuotation ? 'Quotation' : isDeliveryChallan ? 'Delivery Challan' : 'Tax Invoice'}
                   </h1>
                   <div className="grid grid-cols-[100px_1fr] gap-y-1 text-sm">
-                      <span className="text-gray-500 font-medium">{isQuotation ? 'Quotation No #' : 'Invoice No #'}</span>
+                      <span className="text-gray-500 font-medium">{isQuotation ? 'Quotation No #' : isDeliveryChallan ? 'Challan No #' : 'Invoice No #'}</span>
                       <span className="font-bold text-gray-900">{document.number}</span>
                       
-                      <span className="text-gray-500 font-medium">{isQuotation ? 'Date' : 'Invoice Date'}</span>
+                      <span className="text-gray-500 font-medium">{isQuotation ? 'Date' : isDeliveryChallan ? 'Challan Date' : 'Invoice Date'}</span>
                       <span className="font-bold text-gray-900">{new Date(document.date).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
                       
                       {document.dueDate && (
                         <>
-                            <span className="text-gray-500 font-medium">{isQuotation ? 'Valid Till' : 'Due Date'}</span>
+                            <span className="text-gray-500 font-medium">{isQuotation ? 'Valid Till' : isDeliveryChallan ? 'Delivery Date' : 'Due Date'}</span>
                             <span className="font-bold text-gray-900">{new Date(document.dueDate).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
                         </>
                       )}
@@ -1176,7 +1181,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           <div className="grid grid-cols-2 gap-4 mb-4">
               {/* Billed By */}
               <div className="bg-[#f8f5ff] p-3 rounded-sm">
-                  <h3 className="text-[#5c2c90] font-bold text-lg mb-2">{isQuotation ? 'Quotation From' : 'Billed By'}</h3>
+                  <h3 className="text-[#5c2c90] font-bold text-lg mb-2">{isQuotation ? 'Quotation From' : isDeliveryChallan ? 'Consignor' : 'Billed By'}</h3>
                   <div className="text-sm space-y-1 text-gray-800">
                       <p className="font-bold">{userProfile.companyName}</p>
                       <p className="whitespace-pre-line">{userProfile.address.street},</p>
@@ -1189,7 +1194,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
               
               {/* Billed To */}
               <div className="bg-[#f8f5ff] p-3 rounded-sm">
-                  <h3 className="text-[#5c2c90] font-bold text-lg mb-2">{isQuotation ? 'Quotation For' : 'Billed To'}</h3>
+                  <h3 className="text-[#5c2c90] font-bold text-lg mb-2">{isQuotation ? 'Quotation For' : isDeliveryChallan ? 'Consignee' : 'Billed To'}</h3>
                   <div className="text-sm space-y-1 text-gray-800">
                       <p className="font-bold uppercase">{selectedClient?.name}</p>
                       <p className="uppercase">{selectedClient?.address.street},</p>

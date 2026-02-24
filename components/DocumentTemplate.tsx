@@ -1,17 +1,18 @@
 import React, { useMemo } from 'react';
-import { Invoice, Quotation, UserBusinessProfile, Client, LineItem, CustomField, AdditionalCharge } from '../types';
+import { Invoice, Quotation, DeliveryChallan, UserBusinessProfile, Client, LineItem, CustomField, AdditionalCharge } from '../types';
 import { calculateLineItem, numberToWords } from '../services/Calculations';
 import { INDIAN_STATES, CRAFT_DADDY_LOGO_SVG } from '../constants';
 
 interface DocumentTemplateProps {
-  document: Invoice | Quotation;
+  document: Invoice | Quotation | DeliveryChallan;
   userProfile: UserBusinessProfile;
   client?: Client;
-  mode: 'invoice' | 'quotation';
+  mode: 'invoice' | 'quotation' | 'delivery-challan';
 }
 
 export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, userProfile, client, mode }) => {
   const isQuotation = mode === 'quotation';
+  const isDeliveryChallan = mode === 'delivery-challan';
 
   // Calculate Interstate logic locally for template
   const isInterState = useMemo(() => {
@@ -65,18 +66,18 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
         <div className="flex justify-between items-start mb-6">
             <div className="flex flex-col gap-1">
                 <h1 className="text-4xl font-medium text-[#5c2c90] mb-4">
-                    {isQuotation ? 'Quotation' : 'Tax Invoice'}
+                    {isQuotation ? 'Quotation' : isDeliveryChallan ? 'Delivery Challan' : 'Tax Invoice'}
                 </h1>
                 <div className="grid grid-cols-[100px_1fr] gap-y-1 text-sm">
-                    <span className="text-gray-500 font-medium">{isQuotation ? 'Quotation No #' : 'Invoice No #'}</span>
+                    <span className="text-gray-500 font-medium">{isQuotation ? 'Quotation No #' : isDeliveryChallan ? 'Challan No #' : 'Invoice No #'}</span>
                     <span className="font-bold text-gray-900">{document.number}</span>
                     
-                    <span className="text-gray-500 font-medium">{isQuotation ? 'Date' : 'Invoice Date'}</span>
+                    <span className="text-gray-500 font-medium">{isQuotation ? 'Date' : isDeliveryChallan ? 'Challan Date' : 'Invoice Date'}</span>
                     <span className="font-bold text-gray-900">{new Date(document.date).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
                     
                     {document.dueDate && (
                         <>
-                            <span className="text-gray-500 font-medium">{isQuotation ? 'Valid Till' : 'Due Date'}</span>
+                            <span className="text-gray-500 font-medium">{isQuotation ? 'Valid Till' : isDeliveryChallan ? 'Delivery Date' : 'Due Date'}</span>
                             <span className="font-bold text-gray-900">{new Date(document.dueDate).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
                         </>
                     )}
@@ -97,7 +98,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
         {/* Billing Boxes */}
         <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="bg-[#f8f5ff] p-3 rounded-sm">
-                <h3 className="text-[#5c2c90] font-bold text-lg mb-2">{isQuotation ? 'Quotation From' : 'Billed By'}</h3>
+                <h3 className="text-[#5c2c90] font-bold text-lg mb-2">{isQuotation ? 'Quotation From' : isDeliveryChallan ? 'Consignor' : 'Billed By'}</h3>
                 <div className="text-sm space-y-1 text-gray-800">
                     <p className="font-bold">{userProfile.companyName}</p>
                     <p className="whitespace-pre-line">{userProfile.address.street},</p>
@@ -109,7 +110,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
             </div>
             
             <div className="bg-[#f8f5ff] p-3 rounded-sm">
-                <h3 className="text-[#5c2c90] font-bold text-lg mb-2">{isQuotation ? 'Quotation For' : 'Billed To'}</h3>
+                <h3 className="text-[#5c2c90] font-bold text-lg mb-2">{isQuotation ? 'Quotation For' : isDeliveryChallan ? 'Consignee' : 'Billed To'}</h3>
                 <div className="text-sm space-y-1 text-gray-800">
                     <p className="font-bold uppercase">{client?.name}</p>
                     <p className="uppercase">{client?.address.street},</p>

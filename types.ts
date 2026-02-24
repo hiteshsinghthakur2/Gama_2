@@ -117,6 +117,27 @@ export interface Quotation {
   showBankDetails?: boolean;
 }
 
+export enum DeliveryChallanStatus {
+  DRAFT = 'Draft',
+  SENT = 'Sent',
+  DELIVERED = 'Delivered',
+  RETURNED = 'Returned'
+}
+
+export interface DeliveryChallan {
+  id: string;
+  number: string;
+  date: string;
+  status: DeliveryChallanStatus;
+  clientId: string;
+  items: LineItem[];
+  notes?: string;
+  terms?: string;
+  placeOfSupply: string;
+  customFields?: CustomField[];
+  additionalCharges?: AdditionalCharge[];
+}
+
 export enum LeadStatus {
   NEW = 'New',
   CONTACTED = 'Contacted',
