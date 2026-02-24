@@ -56,7 +56,7 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
             await new Promise(r => setTimeout(r, 500));
 
             const opt = {
-                margin: 0,
+                margin: 12.7,
                 filename: `Challan-${shareData.doc.number}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true },

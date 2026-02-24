@@ -58,7 +58,7 @@ const QuotationList: React.FC<QuotationListProps> = ({
             await new Promise(r => setTimeout(r, 500));
 
             const opt = {
-                margin: 0,
+                margin: 12.7,
                 filename: `Quotation-${shareData.doc.number}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true },

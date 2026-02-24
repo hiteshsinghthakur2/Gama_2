@@ -1381,7 +1381,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
             /* Removes browser default headers and footers */
-            @page { margin: 0; size: A4; }
+            @page { margin: 1.27cm; size: A4; }
             
             html, body {
                 height: auto !important;
@@ -1414,7 +1414,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                 height: auto !important;
                 position: static !important;
                 margin: 0 !important;
-                padding: 1.27cm !important; /* Narrow margin 1.27cm */
+                padding: 0 !important;
                 box-sizing: border-box !important;
             }
             

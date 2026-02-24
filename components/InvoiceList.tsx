@@ -14,6 +14,7 @@ interface InvoiceListProps {
   onDuplicate: (invoice: Invoice) => void;
   onUpdateStatus: (id: string, status: InvoiceStatus) => void;
   onDelete: (id: string) => void;
+  onConvertToDeliveryChallan?: (invoice: Invoice) => void;
 }
 
 const InvoiceList: React.FC<InvoiceListProps> = ({ 
@@ -23,7 +24,8 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   onEdit, 
   onDuplicate, 
   onUpdateStatus,
-  onDelete 
+  onDelete,
+  onConvertToDeliveryChallan
 }) => {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
@@ -57,7 +59,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
             await new Promise(r => setTimeout(r, 500));
 
             const opt = {
-                margin: 0,
+                margin: 12.7,
                 filename: `Invoice-${shareData.doc.number}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true },
@@ -262,6 +264,15 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                   View / Print
               </button>
+              {onConvertToDeliveryChallan && (
+                <button 
+                  onClick={() => { onConvertToDeliveryChallan(activeInvoice); setActiveMenuId(null); }} 
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    Create Delivery Challan
+                </button>
+              )}
               <div className="h-px bg-gray-100 my-1 mx-2"></div>
               <button 
                 onClick={() => handleShare(activeInvoice, 'whatsapp')} 

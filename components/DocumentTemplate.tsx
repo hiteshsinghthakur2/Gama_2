@@ -61,7 +61,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
   }, [document.items, isInterState, document.discountType, document.discountValue, document.additionalCharges, document.roundOff]);
 
   return (
-    <div className="bg-white text-black p-8 font-sans w-[210mm] mx-auto">
+    <div className="bg-white text-black font-sans w-[184.6mm] mx-auto">
         {/* Header */}
         <div className="flex justify-between items-start mb-6">
             <div className="flex flex-col gap-1">

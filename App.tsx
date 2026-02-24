@@ -169,6 +169,23 @@ const App: React.FC = () => {
     setEditingQuotation(null);
   };
 
+  const handleConvertToDeliveryChallan = (invoice: Invoice) => {
+    const newChallan: DeliveryChallan = {
+      id: `dc-${Date.now()}`,
+      number: `DC${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`,
+      date: new Date().toISOString().split('T')[0],
+      status: DeliveryChallanStatus.DRAFT,
+      clientId: invoice.clientId,
+      items: invoice.items.map(item => ({...item})),
+      placeOfSupply: invoice.placeOfSupply,
+      terms: '1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.'
+    };
+
+    setActiveTab('delivery-challans');
+    setEditingDeliveryChallan(newChallan);
+    setEditingInvoice(null);
+  };
+
   const renderContent = () => {
     if (isLoading) return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
@@ -207,7 +224,7 @@ const App: React.FC = () => {
                 New Invoice
               </button>
             </div>
-            <InvoiceList invoices={invoices} clients={clients} userProfile={userProfile} onEdit={setEditingInvoice} onDuplicate={(inv) => setInvoices([{...inv, id: `inv-${Date.now()}`, number: `COPY-${inv.number}`}, ...invoices])} onUpdateStatus={handleUpdateInvoiceStatus} onDelete={handleDeleteInvoice} />
+            <InvoiceList invoices={invoices} clients={clients} userProfile={userProfile} onEdit={setEditingInvoice} onDuplicate={(inv) => setInvoices([{...inv, id: `inv-${Date.now()}`, number: `COPY-${inv.number}`}, ...invoices])} onUpdateStatus={handleUpdateInvoiceStatus} onDelete={handleDeleteInvoice} onConvertToDeliveryChallan={handleConvertToDeliveryChallan} />
           </div>
         );
       case 'quotations':
