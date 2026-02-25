@@ -266,6 +266,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
         </div>
 
         <div className="mt-auto pt-4 pb-2 text-center">
+            <p className="text-xs text-gray-500 mb-2">This is an electronically generated document, no signature is required.</p>
         </div>
     </div>
   );
