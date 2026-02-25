@@ -1371,7 +1371,6 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
 
           {/* Footer Branding */}
           <div className="mt-auto pt-4 pb-2 text-center break-inside-avoid">
-             <p className="text-xs text-gray-500 mb-2">This is an electronically generated document, no signature is required.</p>
              <div className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
                 Powered by <span className="font-bold text-[#5c2c90]">BOS-Cloud</span>
              </div>
@@ -1381,7 +1380,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
             /* Removes browser default headers and footers */
-            @page { margin: 1.27cm; size: A4; }
+            @page { margin: 0; size: A4; }
             
             html, body {
                 height: auto !important;
@@ -1392,7 +1391,10 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                 padding: 0 !important;
             }
 
-            /* Hide app shell */
+            /* Apply margin to the print view itself to avoid browser headers */
+            #print-view {
+                padding: 1.27cm !important;
+            }
             nav, aside, header, .no-print, .print\\:hidden {
                 display: none !important;
             }
@@ -1414,7 +1416,6 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                 height: auto !important;
                 position: static !important;
                 margin: 0 !important;
-                padding: 0 !important;
                 box-sizing: border-box !important;
             }
             
