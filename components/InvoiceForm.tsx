@@ -1143,39 +1143,51 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           PRINT VIEW (Hidden on Screen, Visible on Print)
           Uses exact specific styling from the Craft Daddy reference image
          ===================================================================================== */}
-      <div id="print-view" className="hidden print:block bg-white text-black p-0 m-0 font-sans">
-          {/* Header */}
-          <div className="flex justify-between items-start mb-6">
-              <div className="flex flex-col gap-1">
-                  <h1 className="text-4xl font-medium text-[#5c2c90] mb-4">
-                      {isQuotation ? 'Quotation' : isDeliveryChallan ? 'Delivery Challan' : 'Tax Invoice'}
-                  </h1>
-                  <div className="grid grid-cols-[100px_1fr] gap-y-1 text-sm">
-                      <span className="text-gray-500 font-medium">{isQuotation ? 'Quotation No #' : isDeliveryChallan ? 'Challan No #' : 'Invoice No #'}</span>
-                      <span className="font-bold text-gray-900">{document.number}</span>
-                      
-                      <span className="text-gray-500 font-medium">{isQuotation ? 'Date' : isDeliveryChallan ? 'Challan Date' : 'Invoice Date'}</span>
-                      <span className="font-bold text-gray-900">{new Date(document.date).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
-                      
-                      {document.dueDate && (
-                        <>
-                            <span className="text-gray-500 font-medium">{isQuotation ? 'Valid Till' : isDeliveryChallan ? 'Delivery Date' : 'Due Date'}</span>
-                            <span className="font-bold text-gray-900">{new Date(document.dueDate).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
-                        </>
-                      )}
+      <table id="print-view" className="hidden print:table w-full bg-white text-black font-sans" style={{ paddingLeft: '1.27cm', paddingRight: '1.27cm' }}>
+        <thead>
+          <tr>
+            <td>
+              <div className="h-[1.27cm] flex items-end justify-end pb-2">
+                <span className="text-[10px] text-gray-500 font-medium">{client?.name}_{document.number}</span>
+              </div>
+            </td>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              {/* Header */}
+              <div className="flex justify-between items-start mb-6">
+                  <div className="flex flex-col gap-1">
+                      <h1 className="text-4xl font-medium text-[#5c2c90] mb-4">
+                          {isQuotation ? 'Quotation' : isDeliveryChallan ? 'Delivery Challan' : 'Tax Invoice'}
+                      </h1>
+                      <div className="grid grid-cols-[100px_1fr] gap-y-1 text-sm">
+                          <span className="text-gray-500 font-medium">{isQuotation ? 'Quotation No #' : isDeliveryChallan ? 'Challan No #' : 'Invoice No #'}</span>
+                          <span className="font-bold text-gray-900">{document.number}</span>
+                          
+                          <span className="text-gray-500 font-medium">{isQuotation ? 'Date' : isDeliveryChallan ? 'Challan Date' : 'Invoice Date'}</span>
+                          <span className="font-bold text-gray-900">{new Date(document.date).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
+                          
+                          {document.dueDate && (
+                            <>
+                                <span className="text-gray-500 font-medium">{isQuotation ? 'Valid Till' : isDeliveryChallan ? 'Delivery Date' : 'Due Date'}</span>
+                                <span className="font-bold text-gray-900">{new Date(document.dueDate).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
+                            </>
+                          )}
 
-                      {document.customFields?.map((field: CustomField, i: number) => (
-                          <React.Fragment key={i}>
-                              <span className="text-gray-500 font-medium">{field.label}</span>
-                              <span className="font-bold text-gray-900">{field.value}</span>
-                          </React.Fragment>
-                      ))}
+                          {document.customFields?.map((field: CustomField, i: number) => (
+                              <React.Fragment key={i}>
+                                  <span className="text-gray-500 font-medium">{field.label}</span>
+                                  <span className="font-bold text-gray-900">{field.value}</span>
+                              </React.Fragment>
+                          ))}
+                      </div>
+                  </div>
+                  <div className="w-64 flex justify-end">
+                      <img src={userProfile.logoUrl || CRAFT_DADDY_LOGO_SVG} className="max-w-full object-contain" alt="Logo" />
                   </div>
               </div>
-              <div className="w-64 flex justify-end">
-                  <img src={userProfile.logoUrl || CRAFT_DADDY_LOGO_SVG} className="max-w-full object-contain" alt="Logo" />
-              </div>
-          </div>
 
           {/* Billing Boxes */}
           <div className="grid grid-cols-2 gap-4 mb-4">
@@ -1368,20 +1380,28 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                    </div>
               </div>
           </div>
-
-          {/* Footer Branding */}
-          <div className="mt-auto pt-4 pb-2 text-center break-inside-avoid">
-             <p className="text-xs text-gray-500 mb-2">This is an electronically generated document, no signature is required.</p>
-             <div className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
-                Powered by <span className="font-bold text-[#5c2c90]">BOS-Cloud</span>
-             </div>
-          </div>
-      </div>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>
+              {/* Footer Branding */}
+              <div className="h-[1.27cm] flex flex-col items-center justify-center pt-2 break-inside-avoid">
+                 <p className="text-xs text-gray-500 mb-1">This is an electronically generated document, no signature is required.</p>
+                 <div className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
+                    Powered by <span className="font-bold text-[#5c2c90]">BOS-Cloud</span>
+                 </div>
+              </div>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
             /* Removes browser default headers and footers */
-            @page { margin: 1.27cm; size: A4; }
+            @page { margin: 0; size: A4; }
             
             html, body {
                 height: auto !important;
