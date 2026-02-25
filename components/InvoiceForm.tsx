@@ -1144,8 +1144,21 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           Uses exact specific styling from the Craft Daddy reference image
          ===================================================================================== */}
       <div id="print-view" className="hidden print:block bg-white text-black p-0 m-0 font-sans">
-          {/* Header */}
-          <div className="flex justify-between items-start mb-6">
+          <table className="w-full">
+              <thead className="table-header-group">
+                  <tr>
+                      <td className="pt-[1.27cm] px-[1.27cm] pb-4">
+                          <div className="flex justify-end">
+                              <span className="text-[10px] text-gray-500 font-medium">{selectedClient?.name}_{document.number}</span>
+                          </div>
+                      </td>
+                  </tr>
+              </thead>
+              <tbody className="table-row-group">
+                  <tr>
+                      <td className="px-[1.27cm]">
+                          {/* Header */}
+                          <div className="flex justify-between items-start mb-6">
               <div className="flex flex-col gap-1">
                   <h1 className="text-4xl font-medium text-[#5c2c90] mb-4">
                       {isQuotation ? 'Quotation' : isDeliveryChallan ? 'Delivery Challan' : 'Tax Invoice'}
@@ -1368,20 +1381,29 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                    </div>
               </div>
           </div>
-
-          {/* Footer Branding */}
-          <div className="mt-auto pt-4 pb-2 text-center break-inside-avoid">
-             <p className="text-xs text-gray-500 mb-2">This is an electronically generated document, no signature is required.</p>
-             <div className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
-                Powered by <span className="font-bold text-[#5c2c90]">BOS-Cloud</span>
-             </div>
-          </div>
+                      </td>
+                  </tr>
+              </tbody>
+              <tfoot className="table-footer-group">
+                  <tr>
+                      <td className="pb-[1.27cm] px-[1.27cm] pt-8">
+                          {/* Footer Branding */}
+                          <div className="text-center break-inside-avoid">
+                             <p className="text-xs text-gray-500 mb-2">This is an electronically generated document, no signature is required.</p>
+                             <div className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
+                                Powered by <span className="font-bold text-[#5c2c90]">BOS-Cloud</span>
+                             </div>
+                          </div>
+                      </td>
+                  </tr>
+              </tfoot>
+          </table>
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
             /* Removes browser default headers and footers */
-            @page { margin: 1.27cm; size: A4; }
+            @page { margin: 0; size: A4; }
             
             html, body {
                 height: auto !important;
