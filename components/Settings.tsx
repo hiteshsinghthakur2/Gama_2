@@ -64,6 +64,14 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
     }, 500);
   };
 
+  const SectionSaveButton = () => (
+    <div className="mt-6 flex justify-end border-t border-gray-100 pt-4">
+      <button type="submit" disabled={saveStatus === 'saving'} className={`px-6 py-2.5 rounded-xl font-bold transition shadow-sm flex items-center gap-2 ${saveStatus === 'saved' ? 'bg-emerald-500 text-white' : saveStatus === 'error' ? 'bg-red-600 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}>
+        {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Save Changes'}
+      </button>
+    </div>
+  );
+
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto animate-in fade-in duration-500">
       <div className="mb-8">
@@ -155,6 +163,7 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
               <button type="button" onClick={() => fileInputRef.current?.click()} className="px-4 py-2 border border-indigo-200 text-indigo-600 rounded-xl text-xs font-bold hover:bg-indigo-50 transition">Select Image</button>
             </div>
           </div>
+          <SectionSaveButton />
         </div>
 
         {/* Business Details */}
@@ -190,6 +199,7 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
               <input required type="text" maxLength={6} className="w-full p-3 border rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-100 font-mono" value={formData.address.pincode} onChange={e => updateAddress('pincode', e.target.value)} />
             </div>
           </div>
+          <SectionSaveButton />
         </div>
 
         {/* Bank Accounts */}
@@ -335,6 +345,7 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
               </div>
             </div>
           </div>
+          <SectionSaveButton />
         </div>
 
         {/* Email Settings */}
@@ -364,6 +375,7 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                   </p>
               </div>
           </div>
+          <SectionSaveButton />
         </div>
 
         {/* Terms and Conditions Settings */}
@@ -413,6 +425,7 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                   </p>
               </div>
           </div>
+          <SectionSaveButton />
         </div>
 
 
