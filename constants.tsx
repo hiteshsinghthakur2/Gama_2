@@ -65,5 +65,8 @@ export const INITIAL_USER_PROFILE = {
       accountType: 'Current'
     },
   ],
-  emailTemplate: "Please find the {type} \"{number}\" for the amount of \"{amount}\"\n\nRegards,\n{companyName}"
+  emailTemplate: "Please find the {type} \"{number}\" for the amount of \"{amount}\"\n\nRegards,\n{companyName}",
+  defaultInvoiceTerms: "1. Subject to local jurisdiction.\n2. Payment within due date.",
+  defaultQuotationTerms: "1. Valid for 30 days.\n2. Subject to local jurisdiction.",
+  defaultChallanTerms: "1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction."
 };

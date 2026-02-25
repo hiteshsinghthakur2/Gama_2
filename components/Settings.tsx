@@ -372,20 +372,44 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
             <span className="w-1.5 h-6 bg-orange-500 rounded-full"></span>
             Terms & Conditions
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-6">
               <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Default Terms and Conditions</label>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Default Invoice Terms</label>
                   <div className="relative">
                       <textarea 
-                          rows={6}
+                          rows={4}
                           className="w-full p-3 border rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-100 text-sm font-medium"
-                          value={formData.defaultTerms || ''}
-                          onChange={(e) => setFormData({...formData, defaultTerms: e.target.value})}
-                          placeholder="Enter your default terms and conditions..."
+                          value={formData.defaultInvoiceTerms || ''}
+                          onChange={(e) => setFormData({...formData, defaultInvoiceTerms: e.target.value})}
+                          placeholder="Enter your default invoice terms..."
+                      />
+                  </div>
+              </div>
+              <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Default Quotation Terms</label>
+                  <div className="relative">
+                      <textarea 
+                          rows={4}
+                          className="w-full p-3 border rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-100 text-sm font-medium"
+                          value={formData.defaultQuotationTerms || ''}
+                          onChange={(e) => setFormData({...formData, defaultQuotationTerms: e.target.value})}
+                          placeholder="Enter your default quotation terms..."
+                      />
+                  </div>
+              </div>
+              <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Default Delivery Challan Terms</label>
+                  <div className="relative">
+                      <textarea 
+                          rows={4}
+                          className="w-full p-3 border rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-100 text-sm font-medium"
+                          value={formData.defaultChallanTerms || ''}
+                          onChange={(e) => setFormData({...formData, defaultChallanTerms: e.target.value})}
+                          placeholder="Enter your default delivery challan terms..."
                       />
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                      These terms will be automatically applied to new invoices and quotations. You can override them for individual documents.
+                      These terms will be automatically applied to new documents. You can override them for individual documents.
                   </p>
               </div>
           </div>

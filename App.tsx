@@ -153,7 +153,7 @@ const App: React.FC = () => {
       clientId: quotation.clientId,
       items: quotation.items.map(item => ({...item})),
       notes: quotation.notes,
-      terms: quotation.terms || '1. Subject to local jurisdiction.\n2. Payment within due date.',
+      terms: quotation.terms || userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.',
       placeOfSupply: quotation.placeOfSupply,
       bankDetails: quotation.bankDetails,
       customFields: quotation.customFields || [],
@@ -178,7 +178,7 @@ const App: React.FC = () => {
       clientId: invoice.clientId,
       items: invoice.items.map(item => ({...item})),
       placeOfSupply: invoice.placeOfSupply,
-      terms: '1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.'
+      terms: invoice.terms || userProfile.defaultChallanTerms || '1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.'
     };
 
     setActiveTab('delivery-challans');
@@ -216,7 +216,7 @@ const App: React.FC = () => {
                   items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
                   placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
                   bankDetails: userProfile.bankAccounts[0],
-                  terms: '1. Subject to local jurisdiction.\n2. Payment within due date.'
+                  terms: userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
                 })}
                 className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg flex items-center justify-center gap-2"
               >
@@ -247,7 +247,7 @@ const App: React.FC = () => {
                   items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
                   placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
                   bankDetails: userProfile.bankAccounts[0],
-                  terms: 'Valid for 30 days.'
+                  terms: userProfile.defaultQuotationTerms || 'Valid for 30 days.'
                 })}
                 className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg flex items-center justify-center gap-2"
               >
@@ -276,7 +276,7 @@ const App: React.FC = () => {
                   clientId: clients[0]?.id || '', 
                   items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
                   placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
-                  terms: '1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.'
+                  terms: userProfile.defaultChallanTerms || '1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.'
                 })}
                 className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg flex items-center justify-center gap-2"
               >
