@@ -11,6 +11,7 @@ import {
   LeadStatus, 
   Client, 
   UserBusinessProfile,
+  AppUser
 } from './types';
 import { INITIAL_USER_PROFILE } from './constants';
 import { StorageService } from './services/StorageService';
@@ -23,6 +24,8 @@ import LeadBoard from './components/LeadBoard';
 import ClientList from './components/ClientList';
 import Sidebar from './components/Sidebar';
 import Settings from './components/Settings';
+import Login from './components/Login';
+import UserManagement from './components/UserManagement';
 
 const STORAGE_KEYS = {
   INVOICES: 'bos_cloud_invoices',
@@ -30,16 +33,19 @@ const STORAGE_KEYS = {
   DELIVERY_CHALLANS: 'bos_cloud_delivery_challans',
   LEADS: 'bos_cloud_leads',
   CLIENTS: 'bos_cloud_clients',
-  PROFILE: 'bos_cloud_user_profile'
+  PROFILE: 'bos_cloud_user_profile',
+  USERS: 'bos_cloud_users'
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'settings' | 'users'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [syncState, setSyncState] = useState(StorageService.getSyncInfo());
   
   // --- States ---
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [users, setUsers] = useState<AppUser[]>([]);
   const [userProfile, setUserProfile] = useState<UserBusinessProfile>(INITIAL_USER_PROFILE);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
@@ -63,13 +69,14 @@ const App: React.FC = () => {
   useEffect(() => {
     const hydrate = async () => {
       setIsLoading(true);
-      const [p, i, q, dc, l, c] = await Promise.all([
+      const [p, i, q, dc, l, c, u] = await Promise.all([
         StorageService.load(STORAGE_KEYS.PROFILE, INITIAL_USER_PROFILE),
         StorageService.load(STORAGE_KEYS.INVOICES, []),
         StorageService.load(STORAGE_KEYS.QUOTATIONS, []),
         StorageService.load(STORAGE_KEYS.DELIVERY_CHALLANS, []),
         StorageService.load(STORAGE_KEYS.LEADS, []),
-        StorageService.load(STORAGE_KEYS.CLIENTS, [])
+        StorageService.load(STORAGE_KEYS.CLIENTS, []),
+        StorageService.load(STORAGE_KEYS.USERS, [])
       ]);
       
       setUserProfile(p);
@@ -89,12 +96,19 @@ const App: React.FC = () => {
           address: { street: '123 Tech Park', city: 'Mumbai', state: 'Maharashtra', stateCode: '27', pincode: '400001', country: 'India' }
         }
       ]);
+      
+      const defaultUsers: AppUser[] = [
+        { id: 'admin-1', username: 'admin', password: 'password', role: 'admin' }
+      ];
+      setUsers(u.length ? u : defaultUsers);
+      
       setIsLoading(false);
     };
     hydrate();
   }, []);
 
   // --- Persistence Effects ---
+  useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.USERS, users); }, [users, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.INVOICES, invoices); }, [invoices, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.QUOTATIONS, quotations); }, [quotations, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.DELIVERY_CHALLANS, deliveryChallans); }, [deliveryChallans, isLoading]);
@@ -304,9 +318,24 @@ const App: React.FC = () => {
         />
       );
       case 'settings': return <Settings profile={userProfile} onSave={setUserProfile} />;
+      case 'users': return (
+        <UserManagement 
+          users={users} 
+          onSaveUser={(user) => setUsers(prev => {
+            const exists = prev.find(u => u.id === user.id);
+            return exists ? prev.map(u => u.id === user.id ? user : u) : [...prev, user];
+          })}
+          onDeleteUser={(id) => setUsers(prev => prev.filter(u => u.id !== id))}
+          currentUser={currentUser!}
+        />
+      );
       default: return <Dashboard invoices={invoices} leads={leads} />;
     }
   };
+
+  if (!currentUser) {
+    return <Login users={users} onLogin={setCurrentUser} />;
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden relative print:h-auto print:overflow-visible print:block">
@@ -319,6 +348,8 @@ const App: React.FC = () => {
           onTabChange={(tab) => { setActiveTab(tab); setEditingInvoice(null); setEditingQuotation(null); setEditingDeliveryChallan(null); setIsSidebarOpen(false); }} 
           onClose={() => setIsSidebarOpen(false)}
           syncState={syncState}
+          currentUser={currentUser}
+          onLogout={() => setCurrentUser(null)}
         />
       </div>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:block">
@@ -329,7 +360,10 @@ const App: React.FC = () => {
              </button>
              <h2 className="font-black text-indigo-600 tracking-tighter uppercase">{userProfile.companyName}</h2>
           </div>
-          <img src={userProfile.logoUrl || "https://picsum.photos/32/32"} className="w-8 h-8 rounded-full object-contain bg-gray-50" alt="Profile" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-600">{currentUser.username}</span>
+            <img src={userProfile.logoUrl || "https://picsum.photos/32/32"} className="w-8 h-8 rounded-full object-contain bg-gray-50" alt="Profile" />
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto print:block">{renderContent()}</main>
       </div>

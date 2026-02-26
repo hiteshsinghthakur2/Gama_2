@@ -1,4 +1,11 @@
 
+export interface AppUser {
+  id: string;
+  username: string;
+  password: string; // Storing plain text for simplicity in this local app
+  role: 'admin' | 'user';
+}
+
 export enum InvoiceStatus {
   DRAFT = 'Draft',
   SENT = 'Sent',
