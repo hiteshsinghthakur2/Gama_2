@@ -1380,7 +1380,6 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
 
           {/* Footer Branding */}
           <div className="mt-auto pt-4 pb-2 text-center break-inside-avoid">
-             <p className="text-xs text-gray-500 mb-2">This is an electronically generated document, no signature is required.</p>
              <div className="text-[10px] text-gray-400 flex items-center justify-center gap-1">
                 Powered by <span className="font-bold text-[#5c2c90]">BOS-Cloud</span>
              </div>
