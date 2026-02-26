@@ -17,12 +17,12 @@ interface ClientListProps {
 }
 
 const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, activeClient, onClearActiveClient, cancelLabel }) => {
-  const [showForm, setShowForm] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [showForm, setShowForm] = useState(!!activeClient);
+  const [editingClient, setEditingClient] = useState<Client | null>(activeClient || null);
   const [isFetchingGST, setIsFetchingGST] = useState(false);
   const [isDataSimulated, setIsDataSimulated] = useState(false);
   const [gstError, setGstError] = useState<string | null>(null);
-  const [clientType, setClientType] = useState<'gst' | 'unregistered'>('gst');
+  const [clientType, setClientType] = useState<'gst' | 'unregistered'>(activeClient ? (activeClient.gstin ? 'gst' : 'unregistered') : 'gst');
 
   const initialClient: Client = {
     id: `client-${Date.now()}`,
@@ -42,7 +42,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
     customFields: []
   };
 
-  const [formData, setFormData] = useState<Client>(initialClient);
+  const [formData, setFormData] = useState<Client>(activeClient || initialClient);
 
   // Handle external active client (e.g. from InvoiceForm)
   useEffect(() => {
