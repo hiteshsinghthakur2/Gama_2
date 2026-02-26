@@ -1144,8 +1144,17 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           Uses exact specific styling from the Craft Daddy reference image
          ===================================================================================== */}
       <div id="print-view" className="hidden print:block bg-white text-black p-0 m-0 font-sans">
-          {/* Header */}
-          <div className="flex justify-between items-start mb-6">
+          <table className="w-full border-collapse border-spacing-0">
+              <thead className="print:table-header-group">
+                  <tr>
+                      <td className="h-[1.27cm] p-0 m-0 border-none"></td>
+                  </tr>
+              </thead>
+              <tbody className="print:table-row-group">
+                  <tr className="allow-break">
+                      <td className="p-0 m-0 border-none">
+                          {/* Header */}
+                          <div className="flex justify-between items-start mb-6">
               <div className="flex flex-col gap-1">
                   <h1 className="text-4xl font-medium text-[#5c2c90] mb-4">
                       {isQuotation ? 'Quotation' : isDeliveryChallan ? 'Delivery Challan' : 'Tax Invoice'}
@@ -1376,6 +1385,10 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                 Powered by <span className="font-bold text-[#5c2c90]">BOS-Cloud</span>
              </div>
           </div>
+                      </td>
+                  </tr>
+              </tbody>
+          </table>
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
@@ -1421,7 +1434,6 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                 position: static !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                padding-top: 1.27cm !important;
                 box-sizing: border-box !important;
             }
             
@@ -1434,6 +1446,11 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
             .break-inside-avoid {
                 break-inside: avoid !important;
                 page-break-inside: avoid !important;
+            }
+            
+            .allow-break {
+                break-inside: auto !important;
+                page-break-inside: auto !important;
             }
             
             /* Text adjustments */
