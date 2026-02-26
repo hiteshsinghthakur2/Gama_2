@@ -1387,15 +1387,24 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                       </td>
                   </tr>
               </tbody>
+              <tfoot className="print:table-footer-group">
+                  <tr>
+                      <td className="h-[1.27cm] p-0 m-0 border-none align-bottom">
+                          <div className="flex justify-between items-end text-[8px] text-gray-500 pb-2">
+                              <span>This is an electronically generated document, no signature is required.</span>
+                          </div>
+                      </td>
+                  </tr>
+              </tfoot>
           </table>
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-            /* Removes browser default top headers (date/title) but keeps bottom footers (page number) */
+            /* Removes browser default top headers (date/title) and bottom footers (URL) */
             @page { 
                 margin-top: 0; 
-                margin-bottom: 1.27cm; 
+                margin-bottom: 0; 
                 margin-left: 1.27cm; 
                 margin-right: 1.27cm; 
                 size: A4; 
