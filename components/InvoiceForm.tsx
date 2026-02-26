@@ -1380,8 +1380,14 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-            /* Removes browser default headers and footers */
-            @page { margin: 1.27cm; size: A4; }
+            /* Removes browser default top headers (date/title) but keeps bottom footers (page number) */
+            @page { 
+                margin-top: 0; 
+                margin-bottom: 1.27cm; 
+                margin-left: 1.27cm; 
+                margin-right: 1.27cm; 
+                size: A4; 
+            }
             
             html, body {
                 height: auto !important;
@@ -1407,7 +1413,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                 padding-bottom: 0 !important;
             }
 
-            /* Print View Display - Add padding to simulate margins */
+            /* Print View Display - Add padding to simulate top margin */
             #print-view {
                 display: block !important;
                 width: 100% !important;
@@ -1415,6 +1421,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                 position: static !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                padding-top: 1.27cm !important;
                 box-sizing: border-box !important;
             }
             
