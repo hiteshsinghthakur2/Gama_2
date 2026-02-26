@@ -156,7 +156,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
                             <td className="py-2 px-2">
                                 <div className="font-bold text-gray-800">{item.description}</div>
                                 {item.details && (
-                                    <div className="text-gray-500 text-[10px] mt-0.5 whitespace-pre-wrap">{item.details}</div>
+                                    <div className="text-gray-500 text-[10px] mt-0.5 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: item.details }}></div>
                                 )}
                             </td>
                             <td className="py-2 px-1 text-center text-gray-600">{item.hsn}</td>

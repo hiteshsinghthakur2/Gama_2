@@ -15,6 +15,51 @@ import {
 } from '../types';
 import { INDIAN_STATES, CRAFT_DADDY_LOGO_SVG } from '../constants';
 import { calculateLineItem, numberToWords, formatCurrency } from '../services/Calculations';
+import { useRef } from 'react';
+
+const RichTextEditor = ({ value, onChange, placeholder, id }: { value: string, onChange: (val: string) => void, placeholder: string, id: string }) => {
+    const editorRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (editorRef.current && editorRef.current.innerHTML !== value) {
+            editorRef.current.innerHTML = value || '';
+        }
+    }, [value]);
+
+    const handleInput = () => {
+        if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+        }
+    };
+
+    const handleFormat = (format: string) => {
+        if (editorRef.current) {
+            editorRef.current.focus();
+            window.document.execCommand(format, false, undefined);
+            handleInput();
+        }
+    };
+
+    return (
+        <div className="border border-gray-200 rounded p-2 bg-white relative">
+            <div className="flex gap-2 mb-1 border-b border-gray-100 pb-1">
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('bold'); }} className="p-1 hover:bg-gray-100 rounded font-bold">B</button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('italic'); }} className="p-1 hover:bg-gray-100 rounded italic">I</button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); handleFormat('underline'); }} className="p-1 hover:bg-gray-100 rounded underline">U</button>
+            </div>
+            <div 
+                id={id}
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning={true}
+                className="w-full text-xs text-gray-600 outline-none min-h-[48px] bg-transparent whitespace-pre-wrap empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+                onInput={handleInput}
+                onBlur={handleInput}
+                data-placeholder={placeholder}
+            ></div>
+        </div>
+    );
+};
 
 interface DocumentFormProps {
   userProfile: UserBusinessProfile;
@@ -234,33 +279,6 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
       ...prev,
       items: prev.items.map((item: LineItem) => item.id === id ? { ...item, [field]: value } : item)
     }));
-  };
-
-  const handleFormat = (itemId: string, format: 'b' | 'i' | 'u') => {
-    const item = document.items.find((i: LineItem) => i.id === itemId);
-    if (!item) return;
-
-    const textarea = window.document.getElementById(`textarea-${itemId}`) as HTMLTextAreaElement;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = item.details || '';
-
-    let newText = text;
-    if (start !== end) {
-        const selected = text.substring(start, end);
-        newText = text.substring(0, start) + `<${format}>${selected}</${format}>` + text.substring(end);
-    } else {
-        newText = text.substring(0, start) + `<${format}></${format}>` + text.substring(end);
-    }
-
-    updateItem(itemId, 'details', newText);
-
-    setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + 3, end + 3);
-    }, 0);
   };
 
   const addItem = () => {
@@ -723,21 +741,12 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                                       placeholder="Item Name"
                                     />
                                 </div>
-                                <div className="border border-gray-200 rounded p-2 bg-white relative">
-                                    <div className="flex gap-2 mb-1 border-b border-gray-100 pb-1">
-                                        <button type="button" onClick={() => handleFormat(item.id, 'b')} className="p-1 hover:bg-gray-100 rounded font-bold">B</button>
-                                        <button type="button" onClick={() => handleFormat(item.id, 'i')} className="p-1 hover:bg-gray-100 rounded italic">I</button>
-                                        <button type="button" onClick={() => handleFormat(item.id, 'u')} className="p-1 hover:bg-gray-100 rounded underline">U</button>
-                                    </div>
-                                    <textarea 
-                                        id={`textarea-${item.id}`}
-                                        className="w-full text-xs text-gray-600 outline-none resize-none bg-transparent"
-                                        rows={3}
-                                        placeholder="Add description..."
-                                        value={item.details || ''}
-                                        onChange={e => updateItem(item.id, 'details', e.target.value)}
-                                    ></textarea>
-                                </div>
+                                <RichTextEditor
+                                    id={`editor-${item.id}`}
+                                    value={item.details || ''}
+                                    onChange={(val) => updateItem(item.id, 'details', val)}
+                                    placeholder="Add description..."
+                                />
                               </div>
                               <div className="pt-1">
                                   <input 
@@ -860,9 +869,12 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
 
                              {/* Description Button (Visual placeholder to match reference, actually just spacing or could toggle optional textarea) */}
                              <div className="pb-2">
-                                <button className="text-indigo-600 text-xs font-bold flex items-center gap-1">
-                                    <span className="text-lg leading-none">+</span> Add Description
-                                </button>
+                                <RichTextEditor
+                                    id={`editor-mobile-${item.id}`}
+                                    value={item.details || ''}
+                                    onChange={(val) => updateItem(item.id, 'details', val)}
+                                    placeholder="Add description..."
+                                />
                              </div>
 
                             {/* GST Rate */}
@@ -1284,7 +1296,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                               <td className="py-2 px-2">
                                   <div className="font-bold text-gray-800">{item.description}</div>
                                   {item.details && (
-                                      <div className="text-gray-500 text-[10px] mt-0.5 whitespace-pre-wrap">{item.details}</div>
+                                      <div className="text-gray-500 text-[10px] mt-0.5 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: item.details }}></div>
                                   )}
                               </td>
                               <td className="py-2 px-1 text-center text-gray-600">{item.hsn}</td>
