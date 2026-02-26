@@ -153,7 +153,12 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
                     const calc = calculateLineItem(item, !!isInterState);
                     return (
                         <tr key={item.id} className="border-b border-gray-100">
-                            <td className="py-2 px-2"><div className="font-bold text-gray-800">{item.description}</div></td>
+                            <td className="py-2 px-2">
+                                <div className="font-bold text-gray-800">{item.description}</div>
+                                {item.details && (
+                                    <div className="text-gray-500 text-[10px] mt-0.5 whitespace-pre-wrap">{item.details}</div>
+                                )}
+                            </td>
                             <td className="py-2 px-1 text-center text-gray-600">{item.hsn}</td>
                             <td className="py-2 px-1 text-center">{item.taxRate}%</td>
                             <td className="py-2 px-1 text-center font-medium">{item.qty}</td>

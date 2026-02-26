@@ -236,6 +236,33 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
     }));
   };
 
+  const handleFormat = (itemId: string, format: 'b' | 'i' | 'u') => {
+    const item = document.items.find((i: LineItem) => i.id === itemId);
+    if (!item) return;
+
+    const textarea = window.document.getElementById(`textarea-${itemId}`) as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = item.details || '';
+
+    let newText = text;
+    if (start !== end) {
+        const selected = text.substring(start, end);
+        newText = text.substring(0, start) + `<${format}>${selected}</${format}>` + text.substring(end);
+    } else {
+        newText = text.substring(0, start) + `<${format}></${format}>` + text.substring(end);
+    }
+
+    updateItem(itemId, 'details', newText);
+
+    setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + 3, end + 3);
+    }, 0);
+  };
+
   const addItem = () => {
     setDocument((prev: any) => ({
       ...prev,
@@ -698,14 +725,17 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                                 </div>
                                 <div className="border border-gray-200 rounded p-2 bg-white relative">
                                     <div className="flex gap-2 mb-1 border-b border-gray-100 pb-1">
-                                        <button className="p-1 hover:bg-gray-100 rounded">B</button>
-                                        <button className="p-1 hover:bg-gray-100 rounded italic">I</button>
-                                        <button className="p-1 hover:bg-gray-100 rounded underline">U</button>
+                                        <button type="button" onClick={() => handleFormat(item.id, 'b')} className="p-1 hover:bg-gray-100 rounded font-bold">B</button>
+                                        <button type="button" onClick={() => handleFormat(item.id, 'i')} className="p-1 hover:bg-gray-100 rounded italic">I</button>
+                                        <button type="button" onClick={() => handleFormat(item.id, 'u')} className="p-1 hover:bg-gray-100 rounded underline">U</button>
                                     </div>
                                     <textarea 
+                                        id={`textarea-${item.id}`}
                                         className="w-full text-xs text-gray-600 outline-none resize-none bg-transparent"
                                         rows={3}
                                         placeholder="Add description..."
+                                        value={item.details || ''}
+                                        onChange={e => updateItem(item.id, 'details', e.target.value)}
                                     ></textarea>
                                 </div>
                               </div>
@@ -1253,6 +1283,9 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                           <tr key={item.id} className="border-b border-gray-100 break-inside-avoid page-break-inside-avoid">
                               <td className="py-2 px-2">
                                   <div className="font-bold text-gray-800">{item.description}</div>
+                                  {item.details && (
+                                      <div className="text-gray-500 text-[10px] mt-0.5 whitespace-pre-wrap">{item.details}</div>
+                                  )}
                               </td>
                               <td className="py-2 px-1 text-center text-gray-600">{item.hsn}</td>
                               <td className="py-2 px-1 text-center">{item.taxRate}%</td>

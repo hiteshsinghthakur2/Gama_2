@@ -34,6 +34,7 @@ export interface BankAccount {
 export interface LineItem {
   id: string;
   description: string;
+  details?: string;
   hsn: string;
   qty: number;
   rate: number;
