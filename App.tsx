@@ -44,7 +44,10 @@ const App: React.FC = () => {
   const [syncState, setSyncState] = useState(StorageService.getSyncInfo());
   
   // --- States ---
-  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
+    const saved = localStorage.getItem('bos_cloud_current_user');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [users, setUsers] = useState<AppUser[]>([]);
   const [userProfile, setUserProfile] = useState<UserBusinessProfile>(INITIAL_USER_PROFILE);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -108,6 +111,13 @@ const App: React.FC = () => {
   }, []);
 
   // --- Persistence Effects ---
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('bos_cloud_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('bos_cloud_current_user');
+    }
+  }, [currentUser]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.USERS, users); }, [users, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.INVOICES, invoices); }, [invoices, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.QUOTATIONS, quotations); }, [quotations, isLoading]);
@@ -332,6 +342,14 @@ const App: React.FC = () => {
       default: return <Dashboard invoices={invoices} leads={leads} />;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return <Login users={users} onLogin={setCurrentUser} />;
