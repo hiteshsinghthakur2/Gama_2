@@ -13,7 +13,7 @@ const Login: React.FC<LoginProps> = ({ users, onLogin }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const user = users.find(u => u.username === username && u.password === password);
+    const user = users.find(u => u.username.trim().toLowerCase() === username.trim().toLowerCase() && u.password.trim() === password.trim());
     if (user) {
       onLogin(user);
     } else {

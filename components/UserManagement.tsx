@@ -19,7 +19,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onSaveUser, onDe
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSaveUser(formData);
+    onSaveUser({
+      ...formData,
+      username: formData.username.trim(),
+      password: formData.password.trim()
+    });
     setShowForm(false);
     setFormData({
       id: `user-${Date.now()}`,
