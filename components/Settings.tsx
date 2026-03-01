@@ -404,13 +404,13 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Next Number</label>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Suffix</label>
                       <input 
-                        type="number" 
-                        min="1"
+                        type="text" 
                         className="w-full p-3 border rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-200 text-sm font-mono"
-                        value={seq.nextNumber}
-                        onChange={e => setFormData({ ...formData, [key]: { ...seq, nextNumber: parseInt(e.target.value) || 1 } })}
+                        value={seq.suffix}
+                        onChange={e => setFormData({ ...formData, [key]: { ...seq, suffix: e.target.value } })}
+                        placeholder="e.g. /23-24"
                       />
                     </div>
                     <div>
@@ -425,20 +425,20 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Suffix</label>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Next Number</label>
                       <input 
-                        type="text" 
+                        type="number" 
+                        min="1"
                         className="w-full p-3 border rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-200 text-sm font-mono"
-                        value={seq.suffix}
-                        onChange={e => setFormData({ ...formData, [key]: { ...seq, suffix: e.target.value } })}
-                        placeholder="e.g. /23-24"
+                        value={seq.nextNumber}
+                        onChange={e => setFormData({ ...formData, [key]: { ...seq, nextNumber: parseInt(e.target.value) || 1 } })}
                       />
                     </div>
                   </div>
                   <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">
                     <span className="font-bold text-gray-700">Preview:</span>
                     <span className="font-mono bg-white px-2 py-1 rounded border border-gray-200">
-                      {seq.prefix || ''}{(seq.nextNumber || 1).toString().padStart(seq.padding || 0, '0')}{seq.suffix || ''}
+                      {seq.prefix || ''}{seq.suffix || ''}{(seq.nextNumber || 1).toString().padStart(seq.padding || 0, '0')}
                     </span>
                   </div>
                 </div>

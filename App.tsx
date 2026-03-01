@@ -205,7 +205,7 @@ const App: React.FC = () => {
     if (userProfile.invoiceSequence) {
       const seq = userProfile.invoiceSequence;
       const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
-      newNumber = `${seq.prefix || ''}${paddedNumber}${seq.suffix || ''}`;
+      newNumber = `${seq.prefix || ''}${seq.suffix || ''}${paddedNumber}`;
     }
 
     const newInvoice: Invoice = {
@@ -239,7 +239,7 @@ const App: React.FC = () => {
     if (userProfile.challanSequence) {
       const seq = userProfile.challanSequence;
       const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
-      newNumber = `${seq.prefix || ''}${paddedNumber}${seq.suffix || ''}`;
+      newNumber = `${seq.prefix || ''}${seq.suffix || ''}${paddedNumber}`;
     }
 
     const newChallan: DeliveryChallan = {
@@ -366,7 +366,7 @@ const App: React.FC = () => {
                     if (userProfile.invoiceSequence) {
                       const seq = userProfile.invoiceSequence;
                       const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
-                      newNumber = `${seq.prefix || ''}${paddedNumber}${seq.suffix || ''}`;
+                      newNumber = `${seq.prefix || ''}${seq.suffix || ''}${paddedNumber}`;
                     }
                     setEditingInvoice({ 
                       id: `inv-${Date.now()}`, 
@@ -413,7 +413,7 @@ const App: React.FC = () => {
                   if (userProfile.quotationSequence) {
                     const seq = userProfile.quotationSequence;
                     const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
-                    newNumber = `${seq.prefix || ''}${paddedNumber}${seq.suffix || ''}`;
+                    newNumber = `${seq.prefix || ''}${seq.suffix || ''}${paddedNumber}`;
                   }
                   setEditingQuotation({ 
                     id: `qt-${Date.now()}`, 
@@ -452,7 +452,7 @@ const App: React.FC = () => {
                   if (userProfile.challanSequence) {
                     const seq = userProfile.challanSequence;
                     const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
-                    newNumber = `${seq.prefix || ''}${paddedNumber}${seq.suffix || ''}`;
+                    newNumber = `${seq.prefix || ''}${seq.suffix || ''}${paddedNumber}`;
                   }
                   setEditingDeliveryChallan({ 
                     id: `dc-${Date.now()}`, 

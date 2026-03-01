@@ -103,7 +103,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
 
       if (seq) {
         const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
-        return `${seq.prefix || ''}${paddedNumber}${seq.suffix || ''}`;
+        return `${seq.prefix || ''}${seq.suffix || ''}${paddedNumber}`;
       }
       return `${defaultPrefix}${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`;
     };
