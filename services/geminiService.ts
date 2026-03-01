@@ -1,8 +1,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
+const getApiKey = () => {
+  // Try Vite env first (Vercel/Browser)
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+    return import.meta.env.VITE_GEMINI_API_KEY;
+  }
+  // Try process.env (AI Studio/Node)
+  if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
+    return process.env.GEMINI_API_KEY;
+  }
+  return "";
+};
+
 export const parseInvoiceFromImage = async (base64Data: string, mimeType: string) => {
   try {
-    const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    const apiKey = getApiKey();
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
       console.warn('Gemini API functionality is disabled because GEMINI_API_KEY is missing or empty in environment variables.');
       return null;
@@ -59,19 +71,21 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
       }
     });
 
-    const text = response.text;
+    let text = response.text;
     if (!text) return null;
     
+    text = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+    
     return JSON.parse(text);
-  } catch (error) {
-    console.error('Gemini AI Service Error:', error);
+  } catch (error: any) {
+    console.error('Gemini AI Service Error (parseInvoiceFromImage):', error?.message || error);
     return null;
   }
 };
 
 export const fetchGSTDetailsFromGemini = async (gstin: string) => {
   try {
-    const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    const apiKey = getApiKey();
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
       console.warn('Gemini API functionality is disabled because GEMINI_API_KEY is missing or empty in environment variables.');
       return null;
@@ -104,20 +118,22 @@ export const fetchGSTDetailsFromGemini = async (gstin: string) => {
       }
     });
 
-    const text = response.text;
+    let text = response.text;
     if (!text) return null;
     
+    // Strip markdown formatting if the model accidentally includes it despite responseMimeType
+    text = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+    
     return JSON.parse(text);
-  } catch (error) {
-    console.error('Gemini AI Service Error:', error);
+  } catch (error: any) {
+    console.error('Gemini AI Service Error (fetchGSTDetailsFromGemini):', error?.message || error);
     return null;
   }
 };
 
 export const suggestLineItemsFromPrompt = async (prompt: string) => {
   try {
-    // Access the API key provided via Vite's define or environment
-    const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    const apiKey = getApiKey();
     
     // STRICT CHECK: The SDK throws an error if initialized with an empty string or undefined.
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
@@ -166,12 +182,14 @@ export const suggestLineItemsFromPrompt = async (prompt: string) => {
       }
     });
 
-    const text = response.text;
+    let text = response.text;
     if (!text) return [];
     
+    text = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+    
     return JSON.parse(text);
-  } catch (error) {
-    console.error('Gemini AI Service Error:', error);
+  } catch (error: any) {
+    console.error('Gemini AI Service Error (suggestLineItemsFromPrompt):', error?.message || error);
     return [];
   }
 };
