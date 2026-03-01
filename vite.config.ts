@@ -6,6 +6,7 @@ export default defineConfig({
   base: '/',
   define: {
     // This allows the browser to access the environment variable
+    'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY || process.env.API_KEY || ''),
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY || ''),
     'process.env.GST_API_KEY': JSON.stringify(process.env.GST_API_KEY || ''),
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),

@@ -2,7 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 export const parseInvoiceFromImage = async (base64Data: string, mimeType: string) => {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
       console.warn('Gemini API functionality is disabled because GEMINI_API_KEY is missing or empty in environment variables.');
       return null;
@@ -72,7 +72,7 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
 export const suggestLineItemsFromPrompt = async (prompt: string) => {
   try {
     // Access the API key provided via Vite's define or environment
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
     
     // STRICT CHECK: The SDK throws an error if initialized with an empty string or undefined.
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
