@@ -137,6 +137,15 @@ const App: React.FC = () => {
   const handleSaveInvoice = (invoice: Invoice) => {
     setInvoices(prev => {
       const exists = prev.find(inv => inv.id === invoice.id);
+      if (!exists && userProfile.invoiceSequence) {
+        setUserProfile(p => ({
+          ...p,
+          invoiceSequence: {
+            ...p.invoiceSequence!,
+            nextNumber: p.invoiceSequence!.nextNumber + 1
+          }
+        }));
+      }
       return exists ? prev.map(inv => inv.id === invoice.id ? invoice : inv) : [invoice, ...prev];
     });
     setEditingInvoice(null);
@@ -153,6 +162,15 @@ const App: React.FC = () => {
   const handleSaveQuotation = (quotation: Quotation) => {
     setQuotations(prev => {
       const exists = prev.find(q => q.id === quotation.id);
+      if (!exists && userProfile.quotationSequence) {
+        setUserProfile(p => ({
+          ...p,
+          quotationSequence: {
+            ...p.quotationSequence!,
+            nextNumber: p.quotationSequence!.nextNumber + 1
+          }
+        }));
+      }
       return exists ? prev.map(q => q.id === quotation.id ? quotation : q) : [quotation, ...prev];
     });
     setEditingQuotation(null);
@@ -161,6 +179,15 @@ const App: React.FC = () => {
   const handleSaveDeliveryChallan = (challan: DeliveryChallan) => {
     setDeliveryChallans(prev => {
       const exists = prev.find(dc => dc.id === challan.id);
+      if (!exists && userProfile.challanSequence) {
+        setUserProfile(p => ({
+          ...p,
+          challanSequence: {
+            ...p.challanSequence!,
+            nextNumber: p.challanSequence!.nextNumber + 1
+          }
+        }));
+      }
       return exists ? prev.map(dc => dc.id === challan.id ? challan : dc) : [challan, ...prev];
     });
     setEditingDeliveryChallan(null);
@@ -174,9 +201,16 @@ const App: React.FC = () => {
   };
 
   const handleConvertToInvoice = (quotation: Quotation) => {
+    let newNumber = `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
+    if (userProfile.invoiceSequence) {
+      const seq = userProfile.invoiceSequence;
+      const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
+      newNumber = `${seq.prefix || ''}${paddedNumber}${seq.suffix || ''}`;
+    }
+
     const newInvoice: Invoice = {
       id: `inv-${Date.now()}`,
-      number: `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`,
+      number: newNumber,
       date: new Date().toISOString().split('T')[0],
       dueDate: quotation.validUntil || '',
       poNumber: '',
@@ -201,9 +235,16 @@ const App: React.FC = () => {
   };
 
   const handleConvertToDeliveryChallan = (invoice: Invoice) => {
+    let newNumber = `DC${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
+    if (userProfile.challanSequence) {
+      const seq = userProfile.challanSequence;
+      const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
+      newNumber = `${seq.prefix || ''}${paddedNumber}${seq.suffix || ''}`;
+    }
+
     const newChallan: DeliveryChallan = {
       id: `dc-${Date.now()}`,
-      number: `DC${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`,
+      number: newNumber,
       date: new Date().toISOString().split('T')[0],
       status: DeliveryChallanStatus.DRAFT,
       clientId: invoice.clientId,
@@ -320,18 +361,26 @@ const App: React.FC = () => {
                   Export
                 </button>
                 <button 
-                  onClick={() => setEditingInvoice({ 
-                    id: `inv-${Date.now()}`, 
-                    number: `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`, 
-                    date: new Date().toISOString().split('T')[0], 
-                    dueDate: '', 
-                    status: InvoiceStatus.DRAFT, 
-                    clientId: clients[0]?.id || '', 
-                    items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
-                    placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
-                    bankDetails: userProfile.bankAccounts[0],
-                    terms: userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
-                  })}
+                  onClick={() => {
+                    let newNumber = `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
+                    if (userProfile.invoiceSequence) {
+                      const seq = userProfile.invoiceSequence;
+                      const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
+                      newNumber = `${seq.prefix || ''}${paddedNumber}${seq.suffix || ''}`;
+                    }
+                    setEditingInvoice({ 
+                      id: `inv-${Date.now()}`, 
+                      number: newNumber, 
+                      date: new Date().toISOString().split('T')[0], 
+                      dueDate: '', 
+                      status: InvoiceStatus.DRAFT, 
+                      clientId: clients[0]?.id || '', 
+                      items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
+                      placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
+                      bankDetails: userProfile.bankAccounts[0],
+                      terms: userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
+                    });
+                  }}
                   className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg flex items-center justify-center gap-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -359,18 +408,26 @@ const App: React.FC = () => {
                 <p className="text-xs md:text-sm text-gray-500">Estimates for {userProfile.companyName}</p>
               </div>
               <button 
-                onClick={() => setEditingQuotation({ 
-                  id: `qt-${Date.now()}`, 
-                  number: `QT${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`, 
-                  date: new Date().toISOString().split('T')[0], 
-                  validUntil: '', 
-                  status: QuotationStatus.DRAFT, 
-                  clientId: clients[0]?.id || '', 
-                  items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
-                  placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
-                  bankDetails: userProfile.bankAccounts[0],
-                  terms: userProfile.defaultQuotationTerms || 'Valid for 30 days.'
-                })}
+                onClick={() => {
+                  let newNumber = `QT${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
+                  if (userProfile.quotationSequence) {
+                    const seq = userProfile.quotationSequence;
+                    const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
+                    newNumber = `${seq.prefix || ''}${paddedNumber}${seq.suffix || ''}`;
+                  }
+                  setEditingQuotation({ 
+                    id: `qt-${Date.now()}`, 
+                    number: newNumber, 
+                    date: new Date().toISOString().split('T')[0], 
+                    validUntil: '', 
+                    status: QuotationStatus.DRAFT, 
+                    clientId: clients[0]?.id || '', 
+                    items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
+                    placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
+                    bankDetails: userProfile.bankAccounts[0],
+                    terms: userProfile.defaultQuotationTerms || 'Valid for 30 days.'
+                  });
+                }}
                 className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -390,16 +447,24 @@ const App: React.FC = () => {
                 <p className="text-xs md:text-sm text-gray-500">Transport documents for {userProfile.companyName}</p>
               </div>
               <button 
-                onClick={() => setEditingDeliveryChallan({ 
-                  id: `dc-${Date.now()}`, 
-                  number: `DC${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`, 
-                  date: new Date().toISOString().split('T')[0], 
-                  status: DeliveryChallanStatus.DRAFT, 
-                  clientId: clients[0]?.id || '', 
-                  items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
-                  placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
-                  terms: userProfile.defaultChallanTerms || '1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.'
-                })}
+                onClick={() => {
+                  let newNumber = `DC${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
+                  if (userProfile.challanSequence) {
+                    const seq = userProfile.challanSequence;
+                    const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
+                    newNumber = `${seq.prefix || ''}${paddedNumber}${seq.suffix || ''}`;
+                  }
+                  setEditingDeliveryChallan({ 
+                    id: `dc-${Date.now()}`, 
+                    number: newNumber, 
+                    date: new Date().toISOString().split('T')[0], 
+                    status: DeliveryChallanStatus.DRAFT, 
+                    clientId: clients[0]?.id || '', 
+                    items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
+                    placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
+                    terms: userProfile.defaultChallanTerms || '1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.'
+                  });
+                }}
                 className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>

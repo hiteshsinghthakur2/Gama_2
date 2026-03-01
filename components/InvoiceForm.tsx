@@ -87,13 +87,30 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
   // Use a generic state that matches the structure of both Invoice and Quotation
   // We'll treat 'dueDate' as 'validUntil' when in quotation mode
   const [document, setDocument] = useState<any>(() => {
+    const generateNumber = (mode: 'invoice' | 'quotation' | 'delivery-challan') => {
+      let seq;
+      let defaultPrefix = '';
+      if (mode === 'invoice') {
+        seq = userProfile.invoiceSequence;
+        defaultPrefix = 'CD';
+      } else if (mode === 'quotation') {
+        seq = userProfile.quotationSequence;
+        defaultPrefix = 'QT';
+      } else {
+        seq = userProfile.challanSequence;
+        defaultPrefix = 'DC';
+      }
+
+      if (seq) {
+        const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
+        return `${seq.prefix || ''}${paddedNumber}${seq.suffix || ''}`;
+      }
+      return `${defaultPrefix}${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`;
+    };
+
     const baseDoc = initialData ? { ...initialData } : {
       id: `${mode === 'invoice' ? 'inv' : 'qt'}-${Date.now()}`,
-      number: mode === 'invoice' 
-        ? `CD${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`
-        : mode === 'quotation'
-          ? `QT${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`
-          : `DC${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`,
+      number: generateNumber(mode),
       date: new Date().toISOString().split('T')[0],
       dueDate: '', // used as validUntil for quotation
       poNumber: '',

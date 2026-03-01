@@ -378,6 +378,76 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
           <SectionSaveButton />
         </div>
 
+        {/* Document Numbering Sequences */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-pink-500 rounded-full"></span>
+            Document Numbering Sequences
+          </h2>
+          <div className="space-y-6">
+            {['invoice', 'quotation', 'challan'].map((type) => {
+              const key = `${type}Sequence` as keyof UserBusinessProfile;
+              const seq = formData[key] as any || { prefix: type === 'invoice' ? 'CD' : type === 'quotation' ? 'QT' : 'DC', suffix: '', nextNumber: 1, padding: 4 };
+              
+              return (
+                <div key={type} className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+                  <h3 className="text-xs font-black text-gray-800 uppercase tracking-widest mb-4 capitalize">{type} Sequence</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Prefix</label>
+                      <input 
+                        type="text" 
+                        className="w-full p-3 border rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-200 text-sm font-mono"
+                        value={seq.prefix}
+                        onChange={e => setFormData({ ...formData, [key]: { ...seq, prefix: e.target.value } })}
+                        placeholder="e.g. INV-"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Next Number</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        className="w-full p-3 border rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-200 text-sm font-mono"
+                        value={seq.nextNumber}
+                        onChange={e => setFormData({ ...formData, [key]: { ...seq, nextNumber: parseInt(e.target.value) || 1 } })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Padding (Zeros)</label>
+                      <input 
+                        type="number" 
+                        min="0"
+                        max="10"
+                        className="w-full p-3 border rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-200 text-sm font-mono"
+                        value={seq.padding}
+                        onChange={e => setFormData({ ...formData, [key]: { ...seq, padding: Math.max(0, parseInt(e.target.value) || 0) } })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Suffix</label>
+                      <input 
+                        type="text" 
+                        className="w-full p-3 border rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-200 text-sm font-mono"
+                        value={seq.suffix}
+                        onChange={e => setFormData({ ...formData, [key]: { ...seq, suffix: e.target.value } })}
+                        placeholder="e.g. /23-24"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">
+                    <span className="font-bold text-gray-700">Preview:</span>
+                    <span className="font-mono bg-white px-2 py-1 rounded border border-gray-200">
+                      {seq.prefix || ''}{(seq.nextNumber || 1).toString().padStart(seq.padding || 0, '0')}{seq.suffix || ''}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <SectionSaveButton />
+        </div>
+
         {/* Terms and Conditions Settings */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">

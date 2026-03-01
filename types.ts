@@ -59,6 +59,13 @@ export interface Client {
   customFields?: CustomField[];
 }
 
+export interface DocumentSequence {
+  prefix: string;
+  suffix: string;
+  nextNumber: number;
+  padding: number;
+}
+
 export interface UserBusinessProfile {
   companyName: string;
   logoUrl?: string;
@@ -71,6 +78,9 @@ export interface UserBusinessProfile {
   defaultInvoiceTerms?: string;
   defaultQuotationTerms?: string;
   defaultChallanTerms?: string;
+  invoiceSequence?: DocumentSequence;
+  quotationSequence?: DocumentSequence;
+  challanSequence?: DocumentSequence;
 }
 
 export interface CustomField {
