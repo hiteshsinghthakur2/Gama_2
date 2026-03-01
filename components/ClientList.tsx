@@ -108,19 +108,21 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
         try {
           const details = await fetchGSTDetails(formData.gstin!);
           
-          setFormData(prev => ({
-            ...prev,
-            name: details.legalName, // Auto-fill Company Name
-            address: {
-              ...prev.address,
-              street: details.address.street,
-              city: details.address.city,
-              state: details.address.state,
-              stateCode: details.address.stateCode,
-              pincode: details.address.pincode
-            }
-          }));
-          setIsDataSimulated(true);
+          if (details) {
+            setFormData(prev => ({
+              ...prev,
+              name: details.legalName || details.tradeName || prev.name,
+              address: {
+                ...prev.address,
+                street: details.address.street || prev.address.street,
+                city: details.address.city || prev.address.city,
+                state: details.address.state || prev.address.state,
+                stateCode: details.address.stateCode || prev.address.stateCode,
+                pincode: details.address.pincode || prev.address.pincode
+              }
+            }));
+            setIsDataSimulated(true);
+          }
         } catch (error: any) {
           console.warn("Could not fetch GST details:", error);
           setGstError(error.message || "Failed to fetch GST details");

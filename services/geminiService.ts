@@ -69,6 +69,51 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
   }
 };
 
+export const fetchGSTDetailsFromGemini = async (gstin: string) => {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
+      console.warn('Gemini API functionality is disabled because GEMINI_API_KEY is missing or empty in environment variables.');
+      return null;
+    }
+
+    const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Search the web for GSTIN ${gstin} and extract the Legal Name, Trade Name, and Address. Return the data in JSON format.`,
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            legalName: { type: Type.STRING },
+            tradeName: { type: Type.STRING },
+            address: {
+              type: Type.OBJECT,
+              properties: {
+                street: { type: Type.STRING },
+                city: { type: Type.STRING },
+                state: { type: Type.STRING },
+                pincode: { type: Type.STRING },
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) return null;
+    
+    return JSON.parse(text);
+  } catch (error) {
+    console.error('Gemini AI Service Error:', error);
+    return null;
+  }
+};
+
 export const suggestLineItemsFromPrompt = async (prompt: string) => {
   try {
     // Access the API key provided via Vite's define or environment

@@ -29,6 +29,7 @@ import UserManagement from './components/UserManagement';
 import UserProfile from './components/UserProfile';
 import ExportInvoicesModal from './components/ExportInvoicesModal';
 import { parseInvoiceFromImage } from './services/geminiService';
+import Tools from './components/Tools';
 
 const STORAGE_KEYS = {
   INVOICES: 'bos_cloud_invoices',
@@ -41,7 +42,7 @@ const STORAGE_KEYS = {
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'settings' | 'users' | 'my-profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'tools' | 'settings' | 'users' | 'my-profile'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [syncState, setSyncState] = useState(StorageService.getSyncInfo());
@@ -424,6 +425,7 @@ const App: React.FC = () => {
           cancelLabel={editingInvoice ? "Back to Invoice" : editingQuotation ? "Back to Quotation" : editingDeliveryChallan ? "Back to Challan" : undefined}
         />
       );
+      case 'tools': return <Tools invoices={invoices} clients={clients} userProfile={userProfile} />;
       case 'settings': return <Settings profile={userProfile} onSave={setUserProfile} />;
       case 'users': return (
         <UserManagement 

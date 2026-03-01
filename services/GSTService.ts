@@ -1,6 +1,7 @@
 
 import { INDIAN_STATES } from '../constants';
 import { validateGSTIN } from './ValidationService';
+import { fetchGSTDetailsFromGemini } from './geminiService';
 
 export interface GSTDetails {
   legalName: string;
@@ -16,11 +17,7 @@ export interface GSTDetails {
 }
 
 /**
- * Fetches business details using a third-party Application Service Provider (ASP).
- * 
- * Uses a public free-tier endpoint for demonstration. 
- * For high-volume production, replace the URL with a paid provider like ClearTax, Masters India, or Karza
- * and use `process.env.GST_API_KEY`.
+ * Fetches business details using Gemini Search as a fallback.
  */
 export const fetchGSTDetails = async (gstin: string): Promise<GSTDetails> => {
   // 1. Validate Format
@@ -36,40 +33,26 @@ export const fetchGSTDetails = async (gstin: string): Promise<GSTDetails> => {
       throw new Error("Invalid State Code in GSTIN");
   }
 
-  // 2. Attempt to fetch from ASP (Public Wrapper)
+  // 2. Attempt to fetch from Gemini
   try {
-    // Using a public wrapper for GSTN (sheet.gstincheck.co.in)
-    // In production, you would use: `${process.env.GST_API_URL}?gstin=${gstin}&key=${process.env.GST_API_KEY}`
-    const response = await fetch(`https://sheet.gstincheck.co.in/check/${gstin}`);
+    const data = await fetchGSTDetailsFromGemini(gstin);
     
-    if (!response.ok) {
-        throw new Error("Network response was not ok");
-    }
-
-    const data = await response.json();
-
-    if (data.flag && data.data) {
-        const { lgnm, tradeNam, pradr } = data.data;
-        const addr = pradr?.addr || {};
-
-        // Construct Street Address from available parts
-        const streetParts = [addr.bno, addr.bnm, addr.st, addr.loc].filter(Boolean).join(', ');
-
+    if (data) {
         return {
-            legalName: lgnm,
-            tradeName: tradeNam || lgnm,
+            legalName: data.legalName || "",
+            tradeName: data.tradeName || data.legalName || "",
             address: {
-                street: streetParts || '',
-                city: addr.dst || addr.city || stateObj.capital,
+                street: data.address?.street || "",
+                city: data.address?.city || stateObj.capital || "",
                 state: stateObj.name, // Use canonical state name from our constants
                 stateCode: stateCode,
-                pincode: addr.pncd || '',
+                pincode: data.address?.pincode || "",
                 country: 'India'
             }
         };
     }
   } catch (error) {
-    console.warn("ASP Fetch failed, falling back to inference:", error);
+    console.warn("Gemini Fetch failed, falling back to inference:", error);
     // Fallthrough to inference
   }
 
