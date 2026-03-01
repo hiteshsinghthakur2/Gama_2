@@ -26,6 +26,9 @@ import Sidebar from './components/Sidebar';
 import Settings from './components/Settings';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
+import UserProfile from './components/UserProfile';
+import ExportInvoicesModal from './components/ExportInvoicesModal';
+import { parseInvoiceFromImage } from './services/geminiService';
 
 const STORAGE_KEYS = {
   INVOICES: 'bos_cloud_invoices',
@@ -38,10 +41,13 @@ const STORAGE_KEYS = {
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'settings' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'settings' | 'users' | 'my-profile'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [syncState, setSyncState] = useState(StorageService.getSyncInfo());
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isUploadingBill, setIsUploadingBill] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   // --- States ---
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
@@ -210,6 +216,62 @@ const App: React.FC = () => {
     setEditingInvoice(null);
   };
 
+  const handleUploadBill = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingBill(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Data = (reader.result as string).split(',')[1];
+        const parsedData = await parseInvoiceFromImage(base64Data, file.type);
+        
+        if (parsedData) {
+          // Try to match client by name or GSTIN
+          let matchedClient = clients.find(c => 
+            (parsedData.clientName && c.name.toLowerCase() === parsedData.clientName.toLowerCase()) ||
+            (parsedData.clientGstin && c.gstin === parsedData.clientGstin)
+          );
+
+          // If no client matched but we have client info, we could create a new one, but for now let's just use the first one or empty
+          const clientId = matchedClient?.id || clients[0]?.id || '';
+
+          const newInvoice: Invoice = {
+            id: `inv-${Date.now()}`,
+            number: parsedData.number || `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`,
+            date: parsedData.date || new Date().toISOString().split('T')[0],
+            dueDate: parsedData.dueDate || '',
+            status: InvoiceStatus.DRAFT,
+            clientId: clientId,
+            items: parsedData.items && parsedData.items.length > 0 ? parsedData.items.map((item: any, index: number) => ({
+              id: `item-${Date.now()}-${index}`,
+              description: item.description || '',
+              hsn: item.hsn || '',
+              qty: item.qty || 1,
+              rate: item.rate || 0,
+              taxRate: item.taxRate || 18
+            })) : [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
+            placeOfSupply: parsedData.placeOfSupply || `${userProfile.address.state} (${userProfile.address.stateCode})`,
+            bankDetails: userProfile.bankAccounts[0],
+            terms: userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
+          };
+          setEditingInvoice(newInvoice);
+        } else {
+          alert("Could not extract invoice details. Please check your API key or try another document.");
+        }
+        setIsUploadingBill(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Error uploading bill:", error);
+      alert("An error occurred while processing the bill.");
+      setIsUploadingBill(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const renderContent = () => {
     if (isLoading) return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
@@ -229,26 +291,61 @@ const App: React.FC = () => {
                 <h1 className="text-xl md:text-2xl font-bold">Invoices</h1>
                 <p className="text-xs md:text-sm text-gray-500">Manage billing for {userProfile.companyName}</p>
               </div>
-              <button 
-                onClick={() => setEditingInvoice({ 
-                  id: `inv-${Date.now()}`, 
-                  number: `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`, 
-                  date: new Date().toISOString().split('T')[0], 
-                  dueDate: '', 
-                  status: InvoiceStatus.DRAFT, 
-                  clientId: clients[0]?.id || '', 
-                  items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
-                  placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
-                  bankDetails: userProfile.bankAccounts[0],
-                  terms: userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
-                })}
-                className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg flex items-center justify-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                New Invoice
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <input 
+                  type="file" 
+                  accept="image/*,application/pdf" 
+                  className="hidden" 
+                  ref={fileInputRef} 
+                  onChange={handleUploadBill} 
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingBill}
+                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-5 py-3 rounded-xl hover:bg-gray-50 transition font-bold shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isUploadingBill ? (
+                    <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                  )}
+                  {isUploadingBill ? 'Processing...' : 'Upload Bill'}
+                </button>
+                <button 
+                  onClick={() => setIsExportModalOpen(true)}
+                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-5 py-3 rounded-xl hover:bg-gray-50 transition font-bold shadow-sm flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  Export
+                </button>
+                <button 
+                  onClick={() => setEditingInvoice({ 
+                    id: `inv-${Date.now()}`, 
+                    number: `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`, 
+                    date: new Date().toISOString().split('T')[0], 
+                    dueDate: '', 
+                    status: InvoiceStatus.DRAFT, 
+                    clientId: clients[0]?.id || '', 
+                    items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
+                    placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
+                    bankDetails: userProfile.bankAccounts[0],
+                    terms: userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
+                  })}
+                  className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  New Invoice
+                </button>
+              </div>
             </div>
             <InvoiceList invoices={invoices} clients={clients} userProfile={userProfile} onEdit={setEditingInvoice} onDuplicate={(inv) => setInvoices([{...inv, id: `inv-${Date.now()}`, number: `COPY-${inv.number}`}, ...invoices])} onUpdateStatus={handleUpdateInvoiceStatus} onDelete={handleDeleteInvoice} onConvertToDeliveryChallan={handleConvertToDeliveryChallan} />
+            <ExportInvoicesModal 
+              isOpen={isExportModalOpen} 
+              onClose={() => setIsExportModalOpen(false)} 
+              invoices={invoices} 
+              clients={clients} 
+              userProfile={userProfile} 
+            />
           </div>
         );
       case 'quotations':
@@ -337,6 +434,15 @@ const App: React.FC = () => {
           })}
           onDeleteUser={(id) => setUsers(prev => prev.filter(u => u.id !== id))}
           currentUser={currentUser!}
+        />
+      );
+      case 'my-profile': return (
+        <UserProfile
+          currentUser={currentUser!}
+          onUpdateUser={(updatedUser) => {
+            setCurrentUser(updatedUser);
+            setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+          }}
         />
       );
       default: return <Dashboard invoices={invoices} leads={leads} />;

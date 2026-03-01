@@ -23,6 +23,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
   const [isDataSimulated, setIsDataSimulated] = useState(false);
   const [gstError, setGstError] = useState<string | null>(null);
   const [clientType, setClientType] = useState<'gst' | 'unregistered'>(activeClient ? (activeClient.gstin ? 'gst' : 'unregistered') : 'gst');
+  const [filterText, setFilterText] = useState('');
 
   const initialClient: Client = {
     id: `client-${Date.now()}`,
@@ -190,6 +191,21 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
     return false;
   }, [formData, clientType]);
 
+  const filteredClients = useMemo(() => {
+    if (!filterText.trim()) return clients;
+    const lowerFilter = filterText.toLowerCase();
+    return clients.filter(client => {
+      if (client.name.toLowerCase().includes(lowerFilter)) return true;
+      if (client.email.toLowerCase().includes(lowerFilter)) return true;
+      if (client.phone && client.phone.toLowerCase().includes(lowerFilter)) return true;
+      if (client.customFields && client.customFields.some(cf => 
+        cf.label.toLowerCase().includes(lowerFilter) || 
+        cf.value.toLowerCase().includes(lowerFilter)
+      )) return true;
+      return false;
+    });
+  }, [clients, filterText]);
+
   return (
     <div className="p-4 md:p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -198,13 +214,25 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
           <p className="text-xs md:text-sm text-gray-500">Manage your business customers and compliance</p>
         </div>
         {!showForm && (
-          <button 
-            onClick={handleAdd}
-            className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-            Add New Client
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+              <input 
+                type="text" 
+                placeholder="Filter by name, email, or custom fields..." 
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition"
+              />
+              <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </div>
+            <button 
+              onClick={handleAdd}
+              className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              Add New Client
+            </button>
+          </div>
         )}
       </div>
 
@@ -490,7 +518,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {clients.map((client) => (
+                {filteredClients.map((client) => (
                   <tr key={client.id} className="hover:bg-gray-50/50 transition group">
                     <td className="px-6 py-5">
                       <p className="font-bold text-gray-900 group-hover:text-indigo-600 transition">{client.name}</p>
@@ -537,12 +565,14 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
                     </td>
                   </tr>
                 ))}
-                {clients.length === 0 && (
+                {filteredClients.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-6 py-20 text-center">
                       <div className="flex flex-col items-center gap-2 opacity-30">
                         <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                        <p className="font-black text-xs uppercase tracking-widest text-gray-500">No customers in your directory</p>
+                        <p className="font-black text-xs uppercase tracking-widest text-gray-500">
+                          {clients.length === 0 ? "No customers in your directory" : "No customers match your filter"}
+                        </p>
                       </div>
                     </td>
                   </tr>
