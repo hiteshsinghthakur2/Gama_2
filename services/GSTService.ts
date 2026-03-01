@@ -14,6 +14,8 @@ export interface GSTDetails {
     pincode: string;
     country: string;
   };
+  isFallback?: boolean;
+  error?: string;
 }
 
 /**
@@ -33,6 +35,8 @@ export const fetchGSTDetails = async (gstin: string): Promise<GSTDetails> => {
       throw new Error("Invalid State Code in GSTIN");
   }
 
+  let geminiError = "";
+
   // 2. Attempt to fetch from Gemini
   try {
     const data = await fetchGSTDetailsFromGemini(gstin);
@@ -48,11 +52,15 @@ export const fetchGSTDetails = async (gstin: string): Promise<GSTDetails> => {
                 stateCode: stateCode,
                 pincode: data.address?.pincode || "",
                 country: 'India'
-            }
+            },
+            isFallback: false
         };
+    } else {
+        geminiError = "API returned empty data or key is missing.";
     }
-  } catch (error) {
+  } catch (error: any) {
     console.warn("Gemini Fetch failed, falling back to inference:", error);
+    geminiError = error?.message || "Unknown API Error";
     // Fallthrough to inference
   }
 
@@ -68,6 +76,8 @@ export const fetchGSTDetails = async (gstin: string): Promise<GSTDetails> => {
         stateCode: stateObj.code,
         pincode: "",
         country: 'India'
-    }
+    },
+    isFallback: true,
+    error: geminiError
   };
 };

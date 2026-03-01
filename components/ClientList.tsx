@@ -121,7 +121,14 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
                 pincode: details.address.pincode || prev.address.pincode
               }
             }));
-            setIsDataSimulated(true);
+            
+            if (details.isFallback) {
+              setGstError(`Could not fetch full details: ${details.error || 'Unknown error'}. State and City inferred.`);
+              setIsDataSimulated(false);
+            } else {
+              setIsDataSimulated(true);
+              setGstError(null);
+            }
           }
         } catch (error: any) {
           console.warn("Could not fetch GST details:", error);
