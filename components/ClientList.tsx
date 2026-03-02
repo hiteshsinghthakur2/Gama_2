@@ -24,6 +24,11 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
   const [gstError, setGstError] = useState<string | null>(null);
   const [clientType, setClientType] = useState<'gst' | 'unregistered'>(activeClient ? (activeClient.gstin ? 'gst' : 'unregistered') : 'gst');
   const [filterText, setFilterText] = useState('');
+  
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [bulkGstText, setBulkGstText] = useState('');
+  const [isBulkImporting, setIsBulkImporting] = useState(false);
+  const [bulkImportProgress, setBulkImportProgress] = useState<{ total: number, current: number, success: number, failed: number }>({ total: 0, current: 0, success: 0, failed: 0 });
 
   const initialClient: Client = {
     id: `client-${Date.now()}`,
@@ -215,6 +220,59 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
     });
   }, [clients, filterText]);
 
+  const handleBulkImport = async () => {
+    const gstinList = bulkGstText.split(/[\n,]+/).map(g => g.trim().toUpperCase()).filter(g => g.length === 15);
+    if (gstinList.length === 0) {
+      alert("No valid GSTINs found. Please ensure they are 15 characters long.");
+      return;
+    }
+
+    setIsBulkImporting(true);
+    setBulkImportProgress({ total: gstinList.length, current: 0, success: 0, failed: 0 });
+
+    for (let i = 0; i < gstinList.length; i++) {
+      const gstin = gstinList[i];
+      setBulkImportProgress(prev => ({ ...prev, current: i + 1 }));
+      
+      try {
+        const details = await fetchGSTDetails(gstin);
+        
+        const newClient: Client = {
+          id: `client-${Date.now()}-${i}`,
+          name: details.legalName || details.tradeName || gstin,
+          email: '',
+          phone: '',
+          gstin: gstin,
+          pan: gstin.substring(2, 12),
+          address: {
+            street: details.address || '',
+            city: '',
+            state: details.state || 'Delhi',
+            stateCode: gstin.substring(0, 2),
+            pincode: '',
+            country: 'India'
+          },
+          customFields: []
+        };
+        
+        onSave(newClient);
+        setBulkImportProgress(prev => ({ ...prev, success: prev.success + 1 }));
+      } catch (error) {
+        console.error(`Failed to fetch details for ${gstin}:`, error);
+        setBulkImportProgress(prev => ({ ...prev, failed: prev.failed + 1 }));
+      }
+      
+      // Add a small delay to avoid hitting rate limits too hard
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    setIsBulkImporting(false);
+    setTimeout(() => {
+      setShowBulkImportModal(false);
+      setBulkGstText('');
+    }, 2000);
+  };
+
   return (
     <div className="p-4 md:p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -234,6 +292,13 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
               />
               <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </div>
+            <button 
+              onClick={() => setShowBulkImportModal(true)}
+              className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-5 py-3 rounded-xl font-bold hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+              Bulk Import
+            </button>
             <button 
               onClick={handleAdd}
               className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
@@ -588,6 +653,112 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showBulkImportModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h2 className="text-xl font-bold text-gray-900">Bulk Import Clients via GSTIN</h2>
+              <button 
+                onClick={() => !isBulkImporting && setShowBulkImportModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition"
+                disabled={isBulkImporting}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {!isBulkImporting && bulkImportProgress.total === 0 ? (
+                <>
+                  <div className="mb-4">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Paste GSTINs (comma or newline separated)</label>
+                    <textarea 
+                      value={bulkGstText}
+                      onChange={(e) => setBulkGstText(e.target.value)}
+                      className="w-full h-48 p-4 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition font-mono resize-none"
+                      placeholder="e.g.&#10;27AAACR5055K1Z8&#10;07AAGFF2194N1Z1&#10;29AAACR5055K1Z8"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">Only valid 15-character GSTINs will be processed.</p>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button 
+                      onClick={() => setShowBulkImportModal(false)}
+                      className="px-6 py-2.5 border border-gray-200 rounded-xl text-gray-600 font-bold hover:bg-gray-50 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleBulkImport}
+                      disabled={!bulkGstText.trim()}
+                      className={`px-6 py-2.5 rounded-xl font-bold transition shadow-lg flex items-center gap-2 ${
+                        !bulkGstText.trim()
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none' 
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100'
+                      }`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                      Start Import
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="py-8 flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 relative mb-6">
+                    {isBulkImporting ? (
+                      <div className="absolute inset-0 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+                    ) : (
+                      <div className="absolute inset-0 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    {isBulkImporting ? 'Importing Clients...' : 'Import Complete!'}
+                  </h3>
+                  
+                  <div className="w-full max-w-md bg-gray-100 rounded-full h-2.5 mb-4 overflow-hidden">
+                    <div 
+                      className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" 
+                      style={{ width: `${(bulkImportProgress.current / bulkImportProgress.total) * 100}%` }}
+                    ></div>
+                  </div>
+                  
+                  <p className="text-sm text-gray-500 font-medium mb-6">
+                    Processed {bulkImportProgress.current} of {bulkImportProgress.total} GSTINs
+                  </p>
+                  
+                  <div className="flex gap-4 w-full max-w-xs">
+                    <div className="flex-1 bg-green-50 rounded-xl p-3 border border-green-100">
+                      <p className="text-xs text-green-600 font-bold uppercase tracking-wider mb-1">Success</p>
+                      <p className="text-2xl font-black text-green-700">{bulkImportProgress.success}</p>
+                    </div>
+                    <div className="flex-1 bg-red-50 rounded-xl p-3 border border-red-100">
+                      <p className="text-xs text-red-600 font-bold uppercase tracking-wider mb-1">Failed</p>
+                      <p className="text-2xl font-black text-red-700">{bulkImportProgress.failed}</p>
+                    </div>
+                  </div>
+                  
+                  {!isBulkImporting && (
+                    <button 
+                      onClick={() => {
+                        setShowBulkImportModal(false);
+                        setBulkGstText('');
+                        setBulkImportProgress({ total: 0, current: 0, success: 0, failed: 0 });
+                      }}
+                      className="mt-8 px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition shadow-lg"
+                    >
+                      Close
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

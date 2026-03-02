@@ -31,6 +31,12 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const [shareData, setShareData] = useState<{ doc: Invoice, client: Client | undefined, target: 'whatsapp' | 'email' } | null>(null);
 
+  // Filtering State
+  const [filterMonth, setFilterMonth] = useState<string>('');
+  const [filterYear, setFilterYear] = useState<string>('');
+  const [filterStartDate, setFilterStartDate] = useState<string>('');
+  const [filterEndDate, setFilterEndDate] = useState<string>('');
+
   const getClient = (id: string) => clients.find(c => c.id === id);
 
   const getStatusStyle = (status: InvoiceStatus) => {
@@ -177,27 +183,103 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
 
   const activeInvoice = invoices.find(i => i.id === activeMenuId);
 
+  // Filter Logic
+  const filteredInvoices = invoices.filter(inv => {
+    const invDate = new Date(inv.date);
+    
+    // Month/Year Filter
+    if (filterMonth && invDate.getMonth() + 1 !== parseInt(filterMonth)) return false;
+    if (filterYear && invDate.getFullYear() !== parseInt(filterYear)) return false;
+
+    // Date Range Filter
+    if (filterStartDate && new Date(inv.date) < new Date(filterStartDate)) return false;
+    if (filterEndDate && new Date(inv.date) > new Date(filterEndDate)) return false;
+
+    return true;
+  });
+
+  // Generate Year Options
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative">
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full text-left min-w-[800px]">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Identity</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Issued</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Value</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Lifecycle</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {invoices.map((inv) => {
-              // Updated to use the correct final calculation including discounts/charges
-              const total = calculateDocumentTotal(inv);
-              
-              return (
-                <tr key={inv.id} className="hover:bg-gray-50 transition">
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-end">
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Month</label>
+          <select 
+            value={filterMonth} 
+            onChange={(e) => setFilterMonth(e.target.value)}
+            className="w-full sm:w-32 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            <option value="">All</option>
+            {Array.from({ length: 12 }, (_, i) => (
+              <option key={i + 1} value={i + 1}>{new Date(0, i).toLocaleString('default', { month: 'long' })}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Year</label>
+          <select 
+            value={filterYear} 
+            onChange={(e) => setFilterYear(e.target.value)}
+            className="w-full sm:w-32 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            <option value="">All</option>
+            {yearOptions.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Start Date</label>
+          <input 
+            type="date" 
+            value={filterStartDate} 
+            onChange={(e) => setFilterStartDate(e.target.value)}
+            className="w-full sm:w-40 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">End Date</label>
+          <input 
+            type="date" 
+            value={filterEndDate} 
+            onChange={(e) => setFilterEndDate(e.target.value)}
+            className="w-full sm:w-40 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
+        </div>
+        <div className="flex-grow flex justify-end">
+          <button 
+            onClick={() => { setFilterMonth(''); setFilterYear(''); setFilterStartDate(''); setFilterEndDate(''); }}
+            className="text-sm text-gray-500 hover:text-indigo-600 font-medium transition"
+          >
+            Clear Filters
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left min-w-[800px]">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Identity</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Issued</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Value</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Lifecycle</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredInvoices.map((inv) => {
+                // Updated to use the correct final calculation including discounts/charges
+                const total = calculateDocumentTotal(inv);
+                
+                return (
+                  <tr key={inv.id} className="hover:bg-gray-50 transition">
                   <td className="px-6 py-4 font-bold text-gray-900">{inv.number}</td>
                   <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(inv.clientId)?.name || 'Unknown Client'}</td>
                   <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">{new Date(inv.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</td>
@@ -235,13 +317,21 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                 </tr>
               );
             })}
-            {invoices.length === 0 && (
+            {filteredInvoices.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-gray-400">No invoices in directory.</td>
+                <td colSpan={6} className="px-6 py-20 text-center">
+                  <div className="flex flex-col items-center gap-2 opacity-30">
+                    <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    <p className="font-black text-xs uppercase tracking-widest text-gray-500">
+                      {invoices.length === 0 ? "No invoices created yet" : "No invoices match your filters"}
+                    </p>
+                  </div>
+                </td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
       </div>
 
       {/* Floating Menu */}
