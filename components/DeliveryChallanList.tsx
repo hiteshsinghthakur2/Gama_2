@@ -25,6 +25,7 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
   onDelete 
 }) => {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [activeStatusMenuId, setActiveStatusMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const [shareData, setShareData] = useState<{ doc: DeliveryChallan, client: Client | undefined, target: 'whatsapp' | 'email' } | null>(null);
 
@@ -141,9 +142,13 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
       if (activeMenuId && !(e.target as Element).closest('.action-menu-container') && !(e.target as Element).closest('.action-menu-trigger')) {
         setActiveMenuId(null);
       }
+      if (activeStatusMenuId && !(e.target as Element).closest('.status-menu-container') && !(e.target as Element).closest('.status-menu-trigger')) {
+        setActiveStatusMenuId(null);
+      }
     };
     const handleScroll = () => {
         if(activeMenuId) setActiveMenuId(null);
+        if(activeStatusMenuId) setActiveStatusMenuId(null);
     };
 
     window.addEventListener('click', handleGlobalClick);
@@ -153,7 +158,7 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
         window.removeEventListener('click', handleGlobalClick);
         window.removeEventListener('scroll', handleScroll, true);
     };
-  }, [activeMenuId]);
+  }, [activeMenuId, activeStatusMenuId]);
 
   const toggleMenu = (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
@@ -194,16 +199,25 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
                   <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">{new Date(challan.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</td>
                   <td className="px-6 py-4 font-medium text-gray-700">{challan.items.length} Items</td>
                   <td className="px-6 py-4">
-                    <div className="relative group/status">
-                      <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${getStatusStyle(challan.status)} cursor-pointer whitespace-nowrap`}>
+                    <div className="relative">
+                      <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveStatusMenuId(activeStatusMenuId === challan.id ? null : challan.id);
+                            setActiveMenuId(null);
+                        }}
+                        className={`status-menu-trigger px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${getStatusStyle(challan.status)} cursor-pointer whitespace-nowrap`}
+                      >
                         {challan.status}
-                      </span>
-                      <div className="hidden group-hover/status:flex absolute left-0 top-full mt-1 bg-white border border-gray-100 shadow-2xl rounded-xl z-50 py-1 min-w-[120px] flex-col overflow-hidden">
-                          <button onClick={() => onUpdateStatus(challan.id, DeliveryChallanStatus.DELIVERED)} className="text-left px-4 py-2 text-xs hover:bg-emerald-50 text-emerald-600 font-bold">Mark Delivered</button>
-                          <button onClick={() => onUpdateStatus(challan.id, DeliveryChallanStatus.SENT)} className="text-left px-4 py-2 text-xs hover:bg-blue-50 text-blue-600 font-bold">Mark Sent</button>
-                          <button onClick={() => onUpdateStatus(challan.id, DeliveryChallanStatus.RETURNED)} className="text-left px-4 py-2 text-xs hover:bg-red-50 text-red-600 font-bold">Mark Returned</button>
-                          <button onClick={() => onUpdateStatus(challan.id, DeliveryChallanStatus.DRAFT)} className="text-left px-4 py-2 text-xs hover:bg-gray-50 text-gray-600 font-bold">Mark Draft</button>
-                      </div>
+                      </button>
+                      {activeStatusMenuId === challan.id && (
+                        <div className="status-menu-container absolute left-0 top-full mt-1 bg-white border border-gray-100 shadow-2xl rounded-xl z-50 py-1 min-w-[120px] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                            <button onClick={() => { onUpdateStatus(challan.id, DeliveryChallanStatus.DELIVERED); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-emerald-50 text-emerald-600 font-bold">Mark Delivered</button>
+                            <button onClick={() => { onUpdateStatus(challan.id, DeliveryChallanStatus.SENT); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-blue-50 text-blue-600 font-bold">Mark Sent</button>
+                            <button onClick={() => { onUpdateStatus(challan.id, DeliveryChallanStatus.RETURNED); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-red-50 text-red-600 font-bold">Mark Returned</button>
+                            <button onClick={() => { onUpdateStatus(challan.id, DeliveryChallanStatus.DRAFT); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-gray-50 text-gray-600 font-bold">Mark Draft</button>
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
