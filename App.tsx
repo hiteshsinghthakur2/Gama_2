@@ -363,11 +363,24 @@ const App: React.FC = () => {
                 <button 
                   onClick={() => {
                     let newNumber = `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
-                    if (userProfile.invoiceSequence) {
+                    
+                    // Recommendation based on last invoice
+                    if (invoices.length > 0) {
+                      const lastInvoice = invoices[0]; // Assuming newest is first
+                      const lastNumber = lastInvoice.number;
+                      const match = lastNumber.match(/^(.*?)(\d+)$/);
+                      if (match) {
+                        const prefix = match[1];
+                        const numberStr = match[2];
+                        const nextNumber = (parseInt(numberStr) + 1).toString().padStart(numberStr.length, '0');
+                        newNumber = prefix + nextNumber;
+                      }
+                    } else if (userProfile.invoiceSequence) {
                       const seq = userProfile.invoiceSequence;
                       const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
                       newNumber = `${seq.prefix || ''}${seq.suffix || ''}${paddedNumber}`;
                     }
+
                     setEditingInvoice({ 
                       id: `inv-${Date.now()}`, 
                       number: newNumber, 

@@ -30,7 +30,7 @@ const QuotationList: React.FC<QuotationListProps> = ({
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [activeStatusMenuId, setActiveStatusMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
-  const [shareData, setShareData] = useState<{ doc: Quotation, client: Client | undefined, target: 'whatsapp' | 'email' } | null>(null);
+  const [shareData, setShareData] = useState<{ doc: Quotation, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' } | null>(null);
 
   const getClient = (id: string) => clients.find(c => c.id === id);
 
@@ -44,7 +44,7 @@ const QuotationList: React.FC<QuotationListProps> = ({
     }
   };
 
-  const handleShare = (qt: Quotation, target: 'whatsapp' | 'email') => {
+  const handleShare = (qt: Quotation, target: 'whatsapp' | 'email' | 'download') => {
     setShareData({ doc: qt, client: getClient(qt.clientId), target });
     setActiveMenuId(null);
   };
@@ -83,7 +83,15 @@ const QuotationList: React.FC<QuotationListProps> = ({
                     .replace(/{amount}/g, formattedAmount)
                     .replace(/{companyName}/g, userProfile.companyName);
                 
-                if (shareData.target === 'whatsapp') {
+                if (shareData.target === 'download') {
+                    const url = URL.createObjectURL(pdfBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Quotation-${shareData.doc.number}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else if (shareData.target === 'whatsapp') {
                      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({
                             files: [file],
@@ -280,6 +288,13 @@ const QuotationList: React.FC<QuotationListProps> = ({
               >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                   View / Print
+              </button>
+              <button 
+                onClick={() => handleShare(activeQuotation, 'download')} 
+                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+              >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  Download PDF
               </button>
               <div className="h-px bg-gray-100 my-1 mx-2"></div>
               <button 

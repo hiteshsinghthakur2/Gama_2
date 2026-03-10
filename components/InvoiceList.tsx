@@ -30,13 +30,15 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [activeStatusMenuId, setActiveStatusMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
-  const [shareData, setShareData] = useState<{ doc: Invoice, client: Client | undefined, target: 'whatsapp' | 'email' } | null>(null);
+  const [shareData, setShareData] = useState<{ doc: Invoice, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' } | null>(null);
 
   // Filtering State
   const [filterMonth, setFilterMonth] = useState<string>('');
   const [filterYear, setFilterYear] = useState<string>('');
   const [filterStartDate, setFilterStartDate] = useState<string>('');
   const [filterEndDate, setFilterEndDate] = useState<string>('');
+  const [filterClient, setFilterClient] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
 
   const getClient = (id: string) => clients.find(c => c.id === id);
 
@@ -50,7 +52,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     }
   };
 
-  const handleShare = (inv: Invoice, target: 'whatsapp' | 'email') => {
+  const handleShare = (inv: Invoice, target: 'whatsapp' | 'email' | 'download') => {
     setShareData({ doc: inv, client: getClient(inv.clientId), target });
     setActiveMenuId(null);
   };
@@ -90,7 +92,15 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                     .replace(/{amount}/g, formattedAmount)
                     .replace(/{companyName}/g, userProfile.companyName);
                 
-                if (shareData.target === 'whatsapp') {
+                if (shareData.target === 'download') {
+                    const url = URL.createObjectURL(pdfBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Invoice-${shareData.doc.number}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else if (shareData.target === 'whatsapp') {
                     // WhatsApp Logic
                     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({
@@ -200,6 +210,12 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     if (filterStartDate && new Date(inv.date) < new Date(filterStartDate)) return false;
     if (filterEndDate && new Date(inv.date) > new Date(filterEndDate)) return false;
 
+    // Client Filter
+    if (filterClient && inv.clientId !== filterClient) return false;
+
+    // Status Filter
+    if (filterStatus && inv.status !== filterStatus) return false;
+
     return true;
   });
 
@@ -255,9 +271,42 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
             className="w-full sm:w-40 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
           />
         </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Client</label>
+          <select 
+            value={filterClient} 
+            onChange={(e) => setFilterClient(e.target.value)}
+            className="w-full sm:w-48 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            <option value="">All Clients</option>
+            {clients.map(client => (
+              <option key={client.id} value={client.id}>{client.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Lifecycle (Status)</label>
+          <select 
+            value={filterStatus} 
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="w-full sm:w-32 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            <option value="">All Status</option>
+            {Object.values(InvoiceStatus).map(status => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+        </div>
         <div className="flex-grow flex justify-end">
           <button 
-            onClick={() => { setFilterMonth(''); setFilterYear(''); setFilterStartDate(''); setFilterEndDate(''); }}
+            onClick={() => { 
+                setFilterMonth(''); 
+                setFilterYear(''); 
+                setFilterStartDate(''); 
+                setFilterEndDate(''); 
+                setFilterClient('');
+                setFilterStatus('');
+            }}
             className="text-sm text-gray-500 hover:text-indigo-600 font-medium transition"
           >
             Clear Filters
@@ -367,6 +416,13 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
               >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                   View / Print
+              </button>
+              <button 
+                onClick={() => handleShare(activeInvoice, 'download')} 
+                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+              >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  Download PDF
               </button>
               {onConvertToDeliveryChallan && (
                 <button 
