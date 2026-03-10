@@ -26,6 +26,7 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
 }) => {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [activeStatusMenuId, setActiveStatusMenuId] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const [shareData, setShareData] = useState<{ doc: DeliveryChallan, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' } | null>(null);
 
@@ -185,70 +186,88 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
   const activeChallan = challans.find(c => c.id === activeMenuId);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative">
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full text-left min-w-[800px]">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Challan No</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Items</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-              <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {challans.map((challan) => {
-              return (
-                <tr key={challan.id} className="hover:bg-gray-50 transition">
-                  <td className="px-6 py-4 font-bold text-gray-900">{challan.number}</td>
-                  <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(challan.clientId)?.name || 'Unknown Client'}</td>
-                  <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">{new Date(challan.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</td>
-                  <td className="px-6 py-4 font-medium text-gray-700">{challan.items.length} Items</td>
-                  <td className="px-6 py-4">
-                    <div className="relative">
-                      <button 
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveStatusMenuId(activeStatusMenuId === challan.id ? null : challan.id);
-                            setActiveMenuId(null);
-                        }}
-                        className={`status-menu-trigger px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${getStatusStyle(challan.status)} cursor-pointer whitespace-nowrap`}
-                      >
-                        {challan.status}
-                      </button>
-                      {activeStatusMenuId === challan.id && (
-                        <div className="status-menu-container absolute left-0 top-full mt-1 bg-white border border-gray-100 shadow-2xl rounded-xl z-50 py-1 min-w-[120px] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                            <button onClick={() => { onUpdateStatus(challan.id, DeliveryChallanStatus.DELIVERED); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-emerald-50 text-emerald-600 font-bold">Mark Delivered</button>
-                            <button onClick={() => { onUpdateStatus(challan.id, DeliveryChallanStatus.SENT); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-blue-50 text-blue-600 font-bold">Mark Sent</button>
-                            <button onClick={() => { onUpdateStatus(challan.id, DeliveryChallanStatus.RETURNED); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-red-50 text-red-600 font-bold">Mark Returned</button>
-                            <button onClick={() => { onUpdateStatus(challan.id, DeliveryChallanStatus.DRAFT); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-gray-50 text-gray-600 font-bold">Mark Draft</button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-1">
-                      <button 
-                        onClick={() => onEdit(challan)}
-                        className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition"
-                        title="Edit"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                      </button>
-                      
-                      <button 
-                          className={`p-2.5 rounded-xl transition action-menu-trigger ${activeMenuId === challan.id ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:bg-gray-100'}`}
-                          onClick={(e) => toggleMenu(e, challan.id)}
-                      >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+    <div className="space-y-4">
+      <div className="flex justify-end px-1">
+        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-100 shadow-sm">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sort:</label>
+          <select 
+            value={sortOrder} 
+            onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+            className="text-xs font-bold text-gray-600 outline-none cursor-pointer"
+          >
+            <option value="desc">Latest First</option>
+            <option value="asc">Oldest First</option>
+          </select>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left min-w-[800px]">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Challan No</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Items</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {[...challans].sort((a, b) => {
+                const dateA = new Date(a.date).getTime();
+                const dateB = new Date(b.date).getTime();
+                return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+              }).map((challan) => {
+                return (
+                  <tr key={challan.id} className="hover:bg-gray-50 transition">
+                    <td className="px-6 py-4 font-bold text-gray-900">{challan.number}</td>
+                    <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(challan.clientId)?.name || 'Unknown Client'}</td>
+                    <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">{new Date(challan.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</td>
+                    <td className="px-6 py-4 font-medium text-gray-700">{challan.items.length} Items</td>
+                    <td className="px-6 py-4">
+                      <div className="relative">
+                        <button 
+                          onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveStatusMenuId(activeStatusMenuId === challan.id ? null : challan.id);
+                              setActiveMenuId(null);
+                          }}
+                          className={`status-menu-trigger px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${getStatusStyle(challan.status)} cursor-pointer whitespace-nowrap`}
+                        >
+                          {challan.status}
+                        </button>
+                        {activeStatusMenuId === challan.id && (
+                          <div className="status-menu-container absolute left-0 top-full mt-1 bg-white border border-gray-100 shadow-2xl rounded-xl z-50 py-1 min-w-[120px] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                              <button onClick={() => { onUpdateStatus(challan.id, DeliveryChallanStatus.DELIVERED); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-emerald-50 text-emerald-600 font-bold">Mark Delivered</button>
+                              <button onClick={() => { onUpdateStatus(challan.id, DeliveryChallanStatus.SENT); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-blue-50 text-blue-600 font-bold">Mark Sent</button>
+                              <button onClick={() => { onUpdateStatus(challan.id, DeliveryChallanStatus.RETURNED); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-red-50 text-red-600 font-bold">Mark Returned</button>
+                              <button onClick={() => { onUpdateStatus(challan.id, DeliveryChallanStatus.DRAFT); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-gray-50 text-gray-600 font-bold">Mark Draft</button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-1">
+                        <button 
+                          onClick={() => onEdit(challan)}
+                          className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition"
+                          title="Edit"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                        </button>
+                        
+                        <button 
+                            className={`p-2.5 rounded-xl transition action-menu-trigger ${activeMenuId === challan.id ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:bg-gray-100'}`}
+                            onClick={(e) => toggleMenu(e, challan.id)}
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             {challans.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-6 py-10 text-center text-gray-400">No delivery challans in directory.</td>
@@ -257,6 +276,7 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
           </tbody>
         </table>
       </div>
+    </div>
 
       {/* Floating Menu */}
       {activeMenuId && activeChallan && menuPosition && (

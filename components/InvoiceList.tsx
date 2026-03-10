@@ -39,6 +39,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   const [filterEndDate, setFilterEndDate] = useState<string>('');
   const [filterClient, setFilterClient] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const getClient = (id: string) => clients.find(c => c.id === id);
 
@@ -217,6 +218,10 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     if (filterStatus && inv.status !== filterStatus) return false;
 
     return true;
+  }).sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
   });
 
   // Generate Year Options
@@ -297,6 +302,17 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
             ))}
           </select>
         </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Sort Order</label>
+          <select 
+            value={sortOrder} 
+            onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+            className="w-full sm:w-32 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            <option value="desc">Latest First</option>
+            <option value="asc">Oldest First</option>
+          </select>
+        </div>
         <div className="flex-grow flex justify-end">
           <button 
             onClick={() => { 
@@ -306,6 +322,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                 setFilterEndDate(''); 
                 setFilterClient('');
                 setFilterStatus('');
+                setSortOrder('desc');
             }}
             className="text-sm text-gray-500 hover:text-indigo-600 font-medium transition"
           >
