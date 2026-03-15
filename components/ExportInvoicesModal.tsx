@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import JSZip from 'jszip';
-import { Invoice, Client, UserBusinessProfile } from '../types';
+import { Invoice, Client, UserBusinessProfile, InvoiceStatus } from '../types';
 import { DocumentTemplate } from './DocumentTemplate';
 
 interface ExportInvoicesModalProps {
@@ -12,11 +12,14 @@ interface ExportInvoicesModalProps {
 }
 
 const ExportInvoicesModal: React.FC<ExportInvoicesModalProps> = ({ isOpen, onClose, invoices, clients, userProfile }) => {
-  const [exportType, setExportType] = useState<'all' | 'month' | 'year' | 'range'>('all');
+  const [exportType, setExportType] = useState<'all' | 'month' | 'year' | 'range' | 'client' | 'status' | 'selection'>('all');
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<InvoiceStatus | ''>('');
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
   
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -56,6 +59,24 @@ const ExportInvoicesModal: React.FC<ExportInvoicesModalProps> = ({ isOpen, onClo
         const time = new Date(inv.date).getTime();
         return time >= start && time <= end;
       });
+    } else if (exportType === 'client') {
+      if (!selectedClientId) {
+        alert('Please select a client.');
+        return;
+      }
+      filteredInvoices = invoices.filter(inv => inv.clientId === selectedClientId);
+    } else if (exportType === 'status') {
+      if (!selectedStatus) {
+        alert('Please select a status.');
+        return;
+      }
+      filteredInvoices = invoices.filter(inv => inv.status === selectedStatus);
+    } else if (exportType === 'selection') {
+      if (selectedInvoiceIds.length === 0) {
+        alert('Please select at least one invoice.');
+        return;
+      }
+      filteredInvoices = invoices.filter(inv => selectedInvoiceIds.includes(inv.id));
     }
 
     if (filteredInvoices.length === 0) {
@@ -105,6 +126,12 @@ const ExportInvoicesModal: React.FC<ExportInvoicesModalProps> = ({ isOpen, onClo
       if (exportType === 'month') zipName = `Invoices_${months[selectedMonth]}_${selectedYear}.zip`;
       if (exportType === 'year') zipName = `Invoices_${selectedYear}.zip`;
       if (exportType === 'range') zipName = `Invoices_${startDate}_to_${endDate}.zip`;
+      if (exportType === 'client') {
+        const client = clients.find(c => c.id === selectedClientId);
+        zipName = `Invoices_${client?.name || 'Client'}.zip`;
+      }
+      if (exportType === 'status') zipName = `Invoices_Status_${selectedStatus}.zip`;
+      if (exportType === 'selection') zipName = `Invoices_Selected_${filteredInvoices.length}.zip`;
       
       a.download = zipName;
       document.body.appendChild(a);
@@ -159,8 +186,86 @@ const ExportInvoicesModal: React.FC<ExportInvoicesModalProps> = ({ isOpen, onClo
                   <option value="month">Month-wise</option>
                   <option value="year">Year-wise</option>
                   <option value="range">Date Range</option>
+                  <option value="client">By Client</option>
+                  <option value="status">By Lifecycle (Status)</option>
+                  <option value="selection">Multiple Selection</option>
                 </select>
               </div>
+
+              {exportType === 'client' && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Select Client</label>
+                  <select 
+                    value={selectedClientId} 
+                    onChange={(e) => setSelectedClientId(e.target.value)}
+                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                  >
+                    <option value="">Choose a client...</option>
+                    {clients.map(client => (
+                      <option key={client.id} value={client.id}>{client.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {exportType === 'status' && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Select Status</label>
+                  <select 
+                    value={selectedStatus} 
+                    onChange={(e) => setSelectedStatus(e.target.value as InvoiceStatus)}
+                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                  >
+                    <option value="">Choose a status...</option>
+                    {Object.values(InvoiceStatus).map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {exportType === 'selection' && (
+                <div className="space-y-2 max-h-60 overflow-y-auto p-2 border border-gray-100 rounded-xl bg-gray-50">
+                  <div className="flex justify-between items-center mb-2 px-2">
+                    <span className="text-xs font-bold text-gray-500 uppercase">Select Invoices</span>
+                    <button 
+                      onClick={() => {
+                        if (selectedInvoiceIds.length === invoices.length) {
+                          setSelectedInvoiceIds([]);
+                        } else {
+                          setSelectedInvoiceIds(invoices.map(inv => inv.id));
+                        }
+                      }}
+                      className="text-[10px] font-black text-indigo-600 uppercase hover:underline"
+                    >
+                      {selectedInvoiceIds.length === invoices.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  </div>
+                  {invoices.map(inv => (
+                    <label key={inv.id} className="flex items-center gap-3 p-2 hover:bg-white rounded-lg transition cursor-pointer border border-transparent hover:border-gray-200">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedInvoiceIds.includes(inv.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedInvoiceIds([...selectedInvoiceIds, inv.id]);
+                          } else {
+                            setSelectedInvoiceIds(selectedInvoiceIds.filter(id => id !== inv.id));
+                          }
+                        }}
+                        className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                      />
+                      <div className="flex-grow">
+                        <div className="text-sm font-bold text-gray-900">{inv.number}</div>
+                        <div className="text-[10px] text-gray-500 flex justify-between">
+                          <span>{new Date(inv.date).toLocaleDateString()}</span>
+                          <span>{clients.find(c => c.id === inv.clientId)?.name}</span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
 
               {exportType === 'month' && (
                 <div className="grid grid-cols-2 gap-4">

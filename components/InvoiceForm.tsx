@@ -180,6 +180,9 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
   const selectedClient = useMemo(() => clients.find(c => c.id === document.clientId), [clients, document.clientId]);
   
   const isInterState = useMemo(() => {
+    if (document.taxType === 'igst') return true;
+    if (document.taxType === 'cgst_sgst') return false;
+
     // Extract code from "State (Code)" format e.g., "Delhi (07)" -> "07"
     const supplyStateMatch = document.placeOfSupply.match(/\((\d+)\)/);
     const supplyStateCode = supplyStateMatch ? supplyStateMatch[1] : null;
@@ -201,7 +204,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
     }
 
     return false; // Default to Intra-state
-  }, [document.placeOfSupply, userProfile.address.stateCode, userProfile.address.state]);
+  }, [document.placeOfSupply, userProfile.address.stateCode, userProfile.address.state, document.taxType]);
 
   const totals = useMemo(() => {
     const itemTotals = (document.items || []).reduce((acc: any, item: LineItem) => {
@@ -555,6 +558,22 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                     <datalist id="state-list">
                         {INDIAN_STATES.map(s => <option key={s.code} value={`${s.name} (${s.code})`} />)}
                     </datalist>
+                </div>
+
+                {/* Tax Type Override */}
+                <div className="grid grid-cols-[110px_1fr] items-center gap-2">
+                    <label className="text-gray-500 font-semibold underline decoration-dotted cursor-help">
+                        Tax Type
+                    </label>
+                    <select
+                        className="w-full font-medium text-gray-900 border-b border-gray-200 focus:border-indigo-600 outline-none py-1 transition-colors bg-transparent"
+                        value={document.taxType || 'auto'}
+                        onChange={(e) => setDocument({...document, taxType: e.target.value as any})}
+                    >
+                        <option value="auto">Auto (Based on Place of Supply)</option>
+                        <option value="cgst_sgst">CGST/SGST (Intra-state)</option>
+                        <option value="igst">IGST (Inter-state)</option>
+                    </select>
                 </div>
 
                 {/* Custom Fields (PO Number etc) */}

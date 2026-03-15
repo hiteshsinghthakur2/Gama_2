@@ -16,6 +16,9 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
 
   // Calculate Interstate logic locally for template
   const isInterState = useMemo(() => {
+    if (document.taxType === 'igst') return true;
+    if (document.taxType === 'cgst_sgst') return false;
+
     const supplyStateMatch = document.placeOfSupply.match(/\((\d+)\)/);
     const supplyStateCode = supplyStateMatch ? supplyStateMatch[1] : null;
     const userStateCode = userProfile.address.stateCode;
@@ -30,7 +33,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
         return true; 
     }
     return false;
-  }, [document.placeOfSupply, userProfile]);
+  }, [document.placeOfSupply, userProfile, document.taxType]);
 
   const totals = useMemo(() => {
     const itemTotals = (document.items || []).reduce((acc: any, item: LineItem) => {

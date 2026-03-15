@@ -115,6 +115,7 @@ export interface Invoice {
   additionalCharges?: AdditionalCharge[];
   roundOff?: number;
   showBankDetails?: boolean;
+  taxType?: 'auto' | 'cgst_sgst' | 'igst';
 }
 
 export interface Quotation {
@@ -135,6 +136,7 @@ export interface Quotation {
   additionalCharges?: AdditionalCharge[];
   roundOff?: number;
   showBankDetails?: boolean;
+  taxType?: 'auto' | 'cgst_sgst' | 'igst';
 }
 
 export enum DeliveryChallanStatus {
@@ -156,6 +158,7 @@ export interface DeliveryChallan {
   placeOfSupply: string;
   customFields?: CustomField[];
   additionalCharges?: AdditionalCharge[];
+  taxType?: 'auto' | 'cgst_sgst' | 'igst';
 }
 
 export enum LeadStatus {

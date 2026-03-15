@@ -9,7 +9,7 @@ interface ToolsProps {
 }
 
 const Tools: React.FC<ToolsProps> = ({ invoices, clients, userProfile }) => {
-  const [filterType, setFilterType] = useState<"dateRange" | "month" | "year">(
+  const [filterType, setFilterType] = useState<"dateRange" | "month" | "year" | "client" | "status">(
     "dateRange",
   );
   const [startDate, setStartDate] = useState("");
@@ -18,6 +18,8 @@ const Tools: React.FC<ToolsProps> = ({ invoices, clients, userProfile }) => {
   const [selectedYear, setSelectedYear] = useState(
     new Date().getFullYear().toString(),
   );
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
 
   const handleExport = () => {
     let filteredInvoices = invoices;
@@ -45,6 +47,14 @@ const Tools: React.FC<ToolsProps> = ({ invoices, clients, userProfile }) => {
     } else if (filterType === "year" && selectedYear) {
       filteredInvoices = filteredInvoices.filter(
         (inv) => new Date(inv.date).getFullYear().toString() === selectedYear,
+      );
+    } else if (filterType === "client" && selectedClientId) {
+      filteredInvoices = filteredInvoices.filter(
+        (inv) => inv.clientId === selectedClientId,
+      );
+    } else if (filterType === "status" && selectedStatus) {
+      filteredInvoices = filteredInvoices.filter(
+        (inv) => inv.status === selectedStatus,
       );
     }
 
@@ -100,9 +110,26 @@ const Tools: React.FC<ToolsProps> = ({ invoices, clients, userProfile }) => {
       const effectiveTax =
         originalTaxable > 0 ? totalTax * (taxableAmount / originalTaxable) : 0;
 
-      const isIGST =
-        invoice.placeOfSupply !==
-        `${userProfile.address.state} (${userProfile.address.stateCode})`;
+      let isIGST = false;
+      if (invoice.taxType === 'igst') {
+        isIGST = true;
+      } else if (invoice.taxType === 'cgst_sgst') {
+        isIGST = false;
+      } else {
+        const supplyStateMatch = invoice.placeOfSupply.match(/\((\d+)\)/);
+        const supplyStateCode = supplyStateMatch ? supplyStateMatch[1] : null;
+        const userStateCode = userProfile.address.stateCode;
+
+        if (supplyStateCode && userStateCode) {
+            isIGST = parseInt(supplyStateCode, 10) !== parseInt(userStateCode, 10);
+        } else {
+            const posLower = invoice.placeOfSupply.toLowerCase().trim();
+            const userStateLower = userProfile.address.state.toLowerCase().trim();
+            if (posLower && userStateLower) {
+                isIGST = !posLower.includes(userStateLower);
+            }
+        }
+      }
 
       const igst = isIGST ? effectiveTax : 0;
       const cgst = !isIGST ? effectiveTax / 2 : 0;
@@ -221,8 +248,49 @@ const Tools: React.FC<ToolsProps> = ({ invoices, clients, userProfile }) => {
                 <option value="dateRange">Date Range</option>
                 <option value="month">Month</option>
                 <option value="year">Year</option>
+                <option value="client">By Client</option>
+                <option value="status">By Status</option>
               </select>
             </div>
+
+            {filterType === "client" && (
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Select Client
+                </label>
+                <select
+                  value={selectedClientId}
+                  onChange={(e) => setSelectedClientId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                >
+                  <option value="">Choose a client...</option>
+                  {clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {filterType === "status" && (
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Select Status
+                </label>
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                >
+                  <option value="">Choose a status...</option>
+                  <option value="Draft">Draft</option>
+                  <option value="Sent">Sent</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Overdue">Overdue</option>
+                </select>
+              </div>
+            )}
 
             {filterType === "dateRange" && (
               <div className="grid grid-cols-2 gap-4">
