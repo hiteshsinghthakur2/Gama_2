@@ -538,7 +538,18 @@ const App: React.FC = () => {
   }
 
   if (!currentUser) {
-    return <Login users={users} onLogin={setCurrentUser} />;
+    return (
+      <Login 
+        users={users} 
+        onLogin={setCurrentUser} 
+        onResetPassword={(user) => {
+          setUsers(prev => {
+            const exists = prev.find(u => u.id === user.id);
+            return exists ? prev.map(u => u.id === user.id ? user : u) : [...prev, user];
+          });
+        }}
+      />
+    );
   }
 
   return (
