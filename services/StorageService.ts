@@ -65,8 +65,9 @@ export const StorageService = {
   },
 
   async save(key: string, data: any) {
-    // Always save local first
-    localStorage.setItem(key, JSON.stringify(data));
+    const timestamp = new Date().toISOString();
+    // Always save local first, with timestamp
+    localStorage.setItem(key, JSON.stringify({ data, timestamp }));
 
     const client = getClient();
     if (client) {
@@ -79,7 +80,7 @@ export const StorageService = {
           .upsert({ 
             key_id: key, 
             content: data, 
-            updated_at: new Date().toISOString() 
+            updated_at: timestamp 
           }, { onConflict: 'key_id' });
 
         if (error) throw error;
@@ -98,22 +99,53 @@ export const StorageService = {
   },
 
   async load(key: string, defaultValue: any) {
+    const savedStr = localStorage.getItem(key);
+    let localData = null;
+    let localTimestamp = null;
+    
+    if (savedStr) {
+      try {
+        const parsed = JSON.parse(savedStr);
+        if (parsed && typeof parsed === 'object' && 'timestamp' in parsed && 'data' in parsed) {
+          localData = parsed.data;
+          localTimestamp = parsed.timestamp;
+        } else {
+          // Legacy format
+          localData = parsed;
+          localTimestamp = new Date(0).toISOString();
+        }
+      } catch (e) {
+        localData = defaultValue;
+      }
+    }
+
     const client = getClient();
     if (client) {
       try {
         const { data, error } = await client
           .from('user_data')
-          .select('content')
+          .select('content, updated_at')
           .eq('key_id', key)
           .single();
         
-        if (!error && data) return data.content;
+        if (!error && data) {
+          // Compare timestamps
+          if (!localTimestamp || new Date(data.updated_at) >= new Date(localTimestamp)) {
+            // Cloud is newer or same, update local
+            localStorage.setItem(key, JSON.stringify({ data: data.content, timestamp: data.updated_at }));
+            return data.content;
+          } else {
+            // Local is newer, return local and trigger a sync
+            console.warn("Local data is newer than cloud data. Using local data.");
+            StorageService.save(key, localData);
+            return localData;
+          }
+        }
       } catch (e) {
         console.warn("Cloud load failed, falling back to local:", e);
       }
     }
 
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : defaultValue;
+    return localData !== null ? localData : defaultValue;
   }
 };
