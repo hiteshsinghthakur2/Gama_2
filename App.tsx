@@ -48,6 +48,7 @@ const App: React.FC = () => {
   const [syncState, setSyncState] = useState(StorageService.getSyncInfo());
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isUploadingBill, setIsUploadingBill] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{current: number, total: number} | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   // --- States ---
@@ -299,19 +300,33 @@ const App: React.FC = () => {
   };
 
   const handleUploadBill = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setIsUploadingBill(true);
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Data = (reader.result as string).split(',')[1];
+    setUploadProgress({ current: 0, total: files.length });
+    
+    let newInvoices: Invoice[] = [];
+    let updatedClients = [...clients];
+    let clientsChanged = false;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setUploadProgress({ current: i + 1, total: files.length });
+      
+      try {
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
         const parsedData = await parseInvoiceFromImage(base64Data, file.type);
         
         if (parsedData) {
           // Try to match client by name or GSTIN
-          let matchedClient = clients.find(c => 
+          let matchedClient = updatedClients.find(c => 
             (parsedData.clientName && c.name.toLowerCase() === parsedData.clientName.toLowerCase()) ||
             (parsedData.clientGstin && c.gstin === parsedData.clientGstin)
           );
@@ -321,7 +336,7 @@ const App: React.FC = () => {
           if (!clientId && parsedData.clientName) {
             // Create a new client from the extracted data
             const newClient: Client = {
-              id: `client-${Date.now()}`,
+              id: `client-${Date.now()}-${i}`,
               name: parsedData.clientName,
               email: parsedData.clientEmail || '',
               phone: parsedData.clientPhone || '',
@@ -331,21 +346,22 @@ const App: React.FC = () => {
               state: parsedData.placeOfSupply || '',
               stateCode: ''
             };
-            handleSaveClient(newClient);
+            updatedClients.push(newClient);
             clientId = newClient.id;
+            clientsChanged = true;
           } else if (!clientId) {
-            clientId = clients[0]?.id || '';
+            clientId = updatedClients[0]?.id || '';
           }
 
           const newInvoice: Invoice = {
-            id: `inv-${Date.now()}`,
+            id: `inv-${Date.now()}-${i}`,
             number: parsedData.number || `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`,
             date: parsedData.date || new Date().toISOString().split('T')[0],
             dueDate: parsedData.dueDate || '',
             status: InvoiceStatus.DRAFT,
             clientId: clientId,
             items: parsedData.items && parsedData.items.length > 0 ? parsedData.items.map((item: any, index: number) => ({
-              id: `item-${Date.now()}-${index}`,
+              id: `item-${Date.now()}-${i}-${index}`,
               description: item.description || '',
               hsn: item.hsn || '',
               qty: item.qty || 1,
@@ -356,20 +372,42 @@ const App: React.FC = () => {
             bankDetails: userProfile.bankAccounts[0],
             terms: userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
           };
-          setEditingInvoice(newInvoice);
+          newInvoices.push(newInvoice);
         } else {
-          alert("Could not extract invoice details. Please check your API key or try another document.");
+          console.warn(`Could not extract details from file: ${file.name}`);
         }
-        setIsUploadingBill(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error("Error uploading bill:", error);
-      alert("An error occurred while processing the bill.");
-      setIsUploadingBill(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      } catch (error) {
+        console.error(`Error processing file ${file.name}:`, error);
+      }
     }
+
+    if (newInvoices.length > 0) {
+      if (files.length === 1) {
+        // If only one file, open it in the editor for review
+        setEditingInvoice(newInvoices[0]);
+        if (clientsChanged) {
+          setClients(updatedClients);
+          StorageService.save(STORAGE_KEYS.CLIENTS, updatedClients);
+        }
+      } else {
+        // If multiple files, save them directly to the list
+        const finalInvoices = [...newInvoices, ...invoices];
+        setInvoices(finalInvoices);
+        StorageService.save(STORAGE_KEYS.INVOICES, finalInvoices);
+        
+        if (clientsChanged) {
+          setClients(updatedClients);
+          StorageService.save(STORAGE_KEYS.CLIENTS, updatedClients);
+        }
+        alert(`Successfully processed and saved ${newInvoices.length} out of ${files.length} invoices!`);
+      }
+    } else {
+      alert("Could not extract invoice details from the uploaded files.");
+    }
+
+    setIsUploadingBill(false);
+    setUploadProgress(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const renderContent = () => {
@@ -398,6 +436,7 @@ const App: React.FC = () => {
                   className="hidden" 
                   ref={fileInputRef} 
                   onChange={handleUploadBill} 
+                  multiple
                 />
                 <button 
                   onClick={() => fileInputRef.current?.click()}
@@ -409,7 +448,7 @@ const App: React.FC = () => {
                   ) : (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   )}
-                  {isUploadingBill ? 'Processing...' : 'Upload Bill'}
+                  {isUploadingBill ? (uploadProgress ? `Processing ${uploadProgress.current}/${uploadProgress.total}...` : 'Processing...') : 'Upload Bill(s)'}
                 </button>
                 <button 
                   onClick={() => setIsExportModalOpen(true)}
