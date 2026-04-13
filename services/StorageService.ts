@@ -67,11 +67,7 @@ export const StorageService = {
   async save(key: string, data: any) {
     const timestamp = new Date().toISOString();
     // Always save local first, with timestamp
-    try {
-      localStorage.setItem(key, JSON.stringify({ data, timestamp }));
-    } catch (e) {
-      console.warn("localStorage save failed, proceeding with cloud sync:", e);
-    }
+    localStorage.setItem(key, JSON.stringify({ data, timestamp }));
 
     const client = getClient();
     if (client) {
@@ -103,13 +99,7 @@ export const StorageService = {
   },
 
   async load(key: string, defaultValue: any) {
-    let savedStr = null;
-    try {
-      savedStr = localStorage.getItem(key);
-    } catch (e) {
-      console.warn("localStorage load failed:", e);
-    }
-    
+    const savedStr = localStorage.getItem(key);
     let localData = null;
     let localTimestamp = null;
     
@@ -147,7 +137,7 @@ export const StorageService = {
           } else {
             // Local is newer, return local and trigger a sync
             console.warn("Local data is newer than cloud data. Using local data.");
-            StorageService.save(key, localData);
+            this.save(key, localData);
             return localData;
           }
         }

@@ -10,9 +10,6 @@ interface UserManagementProps {
 
 const UserManagement: React.FC<UserManagementProps> = ({ users, onSaveUser, onDeleteUser, currentUser }) => {
   const [showForm, setShowForm] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<AppUser>({
     id: `user-${Date.now()}`,
     username: '',
@@ -22,52 +19,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onSaveUser, onDe
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    
-    const trimmedUsername = formData.username.trim();
-    const trimmedPassword = formData.password.trim();
-    
-    // Validate username format
-    const usernameRegex = /^[a-zA-Z0-9_]+$/;
-    if (!usernameRegex.test(trimmedUsername)) {
-      setError('Username can only contain letters, numbers, and underscores.');
-      return;
-    }
-    
-    // Check for duplicate username
-    const existingUser = users.find(u => u.username.toLowerCase() === trimmedUsername.toLowerCase() && u.id !== formData.id);
-    if (existingUser) {
-      setError('A user with this username already exists.');
-      return;
-    }
-
     onSaveUser({
       ...formData,
-      username: trimmedUsername,
-      password: trimmedPassword
+      username: formData.username.trim(),
+      password: formData.password.trim()
     });
-    
     setShowForm(false);
-    setIsEditing(false);
-    setFormData({
-      id: `user-${Date.now()}`,
-      username: '',
-      password: '',
-      role: 'user'
-    });
-  };
-
-  const handleEdit = (user: AppUser) => {
-    setFormData(user);
-    setIsEditing(true);
-    setShowForm(true);
-    setError('');
-  };
-
-  const handleCancel = () => {
-    setShowForm(false);
-    setIsEditing(false);
-    setError('');
     setFormData({
       id: `user-${Date.now()}`,
       username: '',
@@ -105,17 +62,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onSaveUser, onDe
       {showForm ? (
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-black text-gray-900">{isEditing ? 'Edit User' : 'Create New User'}</h2>
-            <button onClick={handleCancel} className="text-gray-400 hover:text-gray-600 transition">
+            <h2 className="text-xl font-black text-gray-900">Create New User</h2>
+            <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600 transition">
                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
-          
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium">
-              {error}
-            </div>
-          )}
           
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -130,26 +81,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onSaveUser, onDe
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">Password</label>
-              <div className="relative">
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  required 
-                  value={formData.password} 
-                  onChange={e => setFormData({...formData, password: e.target.value})}
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? (
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                  ) : (
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  )}
-                </button>
-              </div>
+              <input 
+                type="password" 
+                required 
+                value={formData.password} 
+                onChange={e => setFormData({...formData, password: e.target.value})}
+                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+              />
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">Role</label>
@@ -166,7 +104,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onSaveUser, onDe
             <div className="flex gap-4 pt-4">
               <button 
                 type="button" 
-                onClick={handleCancel}
+                onClick={() => setShowForm(false)}
                 className="flex-1 py-4 border border-gray-200 rounded-xl text-gray-600 font-bold hover:bg-gray-50 transition"
               >
                 Cancel
@@ -175,7 +113,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onSaveUser, onDe
                 type="submit" 
                 className="flex-1 py-4 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100"
               >
-                {isEditing ? 'Save Changes' : 'Create User'}
+                Create User
               </button>
             </div>
           </form>
@@ -201,28 +139,19 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onSaveUser, onDe
                       </span>
                     </td>
                     <td className="px-6 py-5 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      {user.id !== currentUser.id && (
                         <button 
-                          onClick={() => handleEdit(user)}
-                          className="p-2 text-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition"
-                          title="Edit User"
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this user?')) {
+                              onDeleteUser(user.id);
+                            }
+                          }}
+                          className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition"
+                          title="Delete User"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
-                        {user.id !== currentUser.id && (
-                          <button 
-                            onClick={() => {
-                              if (window.confirm('Are you sure you want to delete this user?')) {
-                                onDeleteUser(user.id);
-                              }
-                            }}
-                            className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition"
-                            title="Delete User"
-                          >
-                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </td>
                   </tr>
                 ))}

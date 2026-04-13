@@ -52,13 +52,8 @@ const App: React.FC = () => {
   
   // --- States ---
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
-    try {
-      const saved = localStorage.getItem('bos_cloud_current_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      console.warn("Failed to load current user from localStorage:", e);
-      return null;
-    }
+    const saved = localStorage.getItem('bos_cloud_current_user');
+    return saved ? JSON.parse(saved) : null;
   });
   const [users, setUsers] = useState<AppUser[]>([]);
   const [userProfile, setUserProfile] = useState<UserBusinessProfile>(INITIAL_USER_PROFILE);
@@ -124,14 +119,10 @@ const App: React.FC = () => {
 
   // --- Persistence Effects ---
   useEffect(() => {
-    try {
-      if (currentUser) {
-        localStorage.setItem('bos_cloud_current_user', JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem('bos_cloud_current_user');
-      }
-    } catch (e) {
-      console.warn("Failed to save current user to localStorage:", e);
+    if (currentUser) {
+      localStorage.setItem('bos_cloud_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('bos_cloud_current_user');
     }
   }, [currentUser]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.USERS, users); }, [users, isLoading]);
@@ -517,21 +508,11 @@ const App: React.FC = () => {
       case 'users': return (
         <UserManagement 
           users={users} 
-          onSaveUser={(user) => {
-            setUsers(prev => {
-              const exists = prev.find(u => u.id === user.id);
-              return exists ? prev.map(u => u.id === user.id ? user : u) : [...prev, user];
-            });
-            if (currentUser?.id === user.id) {
-              setCurrentUser(user);
-            }
-          }}
-          onDeleteUser={(id) => {
-            setUsers(prev => prev.filter(u => u.id !== id));
-            if (currentUser?.id === id) {
-              setCurrentUser(null);
-            }
-          }}
+          onSaveUser={(user) => setUsers(prev => {
+            const exists = prev.find(u => u.id === user.id);
+            return exists ? prev.map(u => u.id === user.id ? user : u) : [...prev, user];
+          })}
+          onDeleteUser={(id) => setUsers(prev => prev.filter(u => u.id !== id))}
           currentUser={currentUser!}
         />
       );
@@ -557,18 +538,7 @@ const App: React.FC = () => {
   }
 
   if (!currentUser) {
-    return (
-      <Login 
-        users={users} 
-        onLogin={setCurrentUser} 
-        onResetPassword={(user) => {
-          setUsers(prev => {
-            const exists = prev.find(u => u.id === user.id);
-            return exists ? prev.map(u => u.id === user.id ? user : u) : [...prev, user];
-          });
-        }}
-      />
-    );
+    return <Login users={users} onLogin={setCurrentUser} />;
   }
 
   return (
