@@ -67,7 +67,11 @@ export const StorageService = {
   async save(key: string, data: any) {
     const timestamp = new Date().toISOString();
     // Always save local first, with timestamp
-    localStorage.setItem(key, JSON.stringify({ data, timestamp }));
+    try {
+      localStorage.setItem(key, JSON.stringify({ data, timestamp }));
+    } catch (e) {
+      console.warn("localStorage save failed, proceeding with cloud sync:", e);
+    }
 
     const client = getClient();
     if (client) {
@@ -99,7 +103,13 @@ export const StorageService = {
   },
 
   async load(key: string, defaultValue: any) {
-    const savedStr = localStorage.getItem(key);
+    let savedStr = null;
+    try {
+      savedStr = localStorage.getItem(key);
+    } catch (e) {
+      console.warn("localStorage load failed:", e);
+    }
+    
     let localData = null;
     let localTimestamp = null;
     

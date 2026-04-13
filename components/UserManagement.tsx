@@ -27,6 +27,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onSaveUser, onDe
     const trimmedUsername = formData.username.trim();
     const trimmedPassword = formData.password.trim();
     
+    // Validate username format
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!usernameRegex.test(trimmedUsername)) {
+      setError('Username can only contain letters, numbers, and underscores.');
+      return;
+    }
+    
     // Check for duplicate username
     const existingUser = users.find(u => u.username.toLowerCase() === trimmedUsername.toLowerCase() && u.id !== formData.id);
     if (existingUser) {
