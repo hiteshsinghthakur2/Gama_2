@@ -126,13 +126,15 @@ export const StorageService = {
             .single();
           
           if (!error && data) {
-            // Compare timestamps
-            if (!localTimestamp || new Date(data.updated_at) >= new Date(localTimestamp)) {
-              // Cloud is newer or same, update local
+            // Always prefer cloud data if local is empty or default, OR if cloud is newer
+            const isLocalEmpty = !localData || (Array.isArray(localData) && localData.length === 0);
+            
+            if (isLocalEmpty || !localTimestamp || new Date(data.updated_at) >= new Date(localTimestamp)) {
+              // Cloud is newer, same, or local is empty - update local
               localStorage.setItem(key, JSON.stringify({ data: data.content, timestamp: data.updated_at }));
               return data.content;
             } else {
-              // Local is newer, return local and trigger a sync
+              // Local is newer and NOT empty, return local and trigger a sync
               console.warn("Local data is newer than cloud data. Using local data.");
               this.save(key, localData);
               return localData;

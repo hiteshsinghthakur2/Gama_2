@@ -316,8 +316,26 @@ const App: React.FC = () => {
             (parsedData.clientGstin && c.gstin === parsedData.clientGstin)
           );
 
-          // If no client matched but we have client info, we could create a new one, but for now let's just use the first one or empty
-          const clientId = matchedClient?.id || clients[0]?.id || '';
+          let clientId = matchedClient?.id;
+
+          if (!clientId && parsedData.clientName) {
+            // Create a new client from the extracted data
+            const newClient: Client = {
+              id: `client-${Date.now()}`,
+              name: parsedData.clientName,
+              email: parsedData.clientEmail || '',
+              phone: parsedData.clientPhone || '',
+              address: parsedData.clientAddress || '',
+              gstin: parsedData.clientGstin || '',
+              pan: parsedData.clientPan || '',
+              state: parsedData.placeOfSupply || '',
+              stateCode: ''
+            };
+            handleSaveClient(newClient);
+            clientId = newClient.id;
+          } else if (!clientId) {
+            clientId = clients[0]?.id || '';
+          }
 
           const newInvoice: Invoice = {
             id: `inv-${Date.now()}`,
@@ -599,6 +617,16 @@ const App: React.FC = () => {
             if (client) {
               await client.auth.signOut();
             }
+            // Clear all local storage keys related to the app to ensure data safety on shared devices
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('bos_cloud_')) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
             setCurrentUser(null);
           }}
         />
