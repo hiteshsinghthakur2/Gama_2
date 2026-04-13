@@ -7,24 +7,11 @@ let lastSyncTime: Date | null = null;
 let syncStatus: 'idle' | 'syncing' | 'success' | 'error' = 'idle';
 
 // Helper to get or init client
-const getClient = () => {
+export const getClient = () => {
   if (_supabase) return _supabase;
 
-  const configStr = localStorage.getItem('SUPABASE_CONFIG');
-  let url = (window as any).SUPABASE_URL;
-  let key = (window as any).SUPABASE_ANON_KEY;
-
-  if (!url || !key) {
-    if (configStr) {
-      try {
-        const config = JSON.parse(configStr);
-        url = config.url;
-        key = config.key;
-      } catch (e) {
-        return null;
-      }
-    }
-  }
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   if (url && key) {
     try {
@@ -49,7 +36,7 @@ export const StorageService = {
 
   async testConnection() {
     const client = getClient();
-    if (!client) return { success: false, message: 'No credentials provided' };
+    if (!client) return { success: false, message: 'No credentials provided in environment variables.' };
     
     try {
       const { data, error } = await client
@@ -60,7 +47,7 @@ export const StorageService = {
       if (error) throw error;
       return { success: true, message: 'Connected to Supabase' };
     } catch (e: any) {
-      return { success: false, message: e.message || 'Table user_data not found' };
+      return { success: false, message: e.message || 'Table user_data not found or RLS policy blocked access.' };
     }
   },
 
@@ -71,17 +58,24 @@ export const StorageService = {
 
     const client = getClient();
     if (client) {
-      syncStatus = 'syncing';
-      window.dispatchEvent(new CustomEvent('sync-status-change', { detail: { status: 'syncing' } }));
-      
       try {
+        const { data: userData, error: authError } = await client.auth.getUser();
+        if (authError || !userData?.user) {
+          // Not authenticated, just skip cloud sync silently
+          return;
+        }
+
+        syncStatus = 'syncing';
+        window.dispatchEvent(new CustomEvent('sync-status-change', { detail: { status: 'syncing' } }));
+
         const { error } = await client
           .from('user_data')
           .upsert({ 
+            user_id: userData.user.id,
             key_id: key, 
             content: data, 
             updated_at: timestamp 
-          }, { onConflict: 'key_id' });
+          }, { onConflict: 'user_id,key_id' });
 
         if (error) throw error;
         
@@ -122,23 +116,27 @@ export const StorageService = {
     const client = getClient();
     if (client) {
       try {
-        const { data, error } = await client
-          .from('user_data')
-          .select('content, updated_at')
-          .eq('key_id', key)
-          .single();
-        
-        if (!error && data) {
-          // Compare timestamps
-          if (!localTimestamp || new Date(data.updated_at) >= new Date(localTimestamp)) {
-            // Cloud is newer or same, update local
-            localStorage.setItem(key, JSON.stringify({ data: data.content, timestamp: data.updated_at }));
-            return data.content;
-          } else {
-            // Local is newer, return local and trigger a sync
-            console.warn("Local data is newer than cloud data. Using local data.");
-            this.save(key, localData);
-            return localData;
+        const { data: userData, error: authError } = await client.auth.getUser();
+        if (!authError && userData?.user) {
+          const { data, error } = await client
+            .from('user_data')
+            .select('content, updated_at')
+            .eq('user_id', userData.user.id)
+            .eq('key_id', key)
+            .single();
+          
+          if (!error && data) {
+            // Compare timestamps
+            if (!localTimestamp || new Date(data.updated_at) >= new Date(localTimestamp)) {
+              // Cloud is newer or same, update local
+              localStorage.setItem(key, JSON.stringify({ data: data.content, timestamp: data.updated_at }));
+              return data.content;
+            } else {
+              // Local is newer, return local and trigger a sync
+              console.warn("Local data is newer than cloud data. Using local data.");
+              this.save(key, localData);
+              return localData;
+            }
           }
         }
       } catch (e) {

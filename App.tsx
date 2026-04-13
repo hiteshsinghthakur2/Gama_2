@@ -114,7 +114,47 @@ const App: React.FC = () => {
       
       setIsLoading(false);
     };
-    hydrate();
+    
+    if (currentUser) {
+      hydrate();
+    } else {
+      setIsLoading(false);
+    }
+  }, [currentUser?.id]);
+
+  // --- Auth Listener ---
+  useEffect(() => {
+    let subscription: any = null;
+    
+    const setupAuthListener = async () => {
+      const { getClient } = await import('./services/StorageService');
+      const client = getClient();
+      if (client) {
+        // Check initial session
+        const { data: { session } } = await client.auth.getSession();
+        if (!session) {
+          setCurrentUser(null);
+        } else {
+          setCurrentUser(prev => prev ? prev : { id: session.user.id, username: session.user.email || '', password: '', role: 'user' });
+        }
+
+        const { data } = client.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_OUT') {
+            setCurrentUser(null);
+          } else if (session?.user) {
+            setCurrentUser(prev => prev ? prev : { id: session.user.id, username: session.user.email || '', password: '', role: 'user' });
+          }
+        });
+        subscription = data.subscription;
+      }
+    };
+    setupAuthListener();
+    
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, []);
 
   // --- Persistence Effects ---
@@ -553,7 +593,14 @@ const App: React.FC = () => {
           onClose={() => setIsSidebarOpen(false)}
           syncState={syncState}
           currentUser={currentUser}
-          onLogout={() => setCurrentUser(null)}
+          onLogout={async () => {
+            const { getClient } = await import('./services/StorageService');
+            const client = getClient();
+            if (client) {
+              await client.auth.signOut();
+            }
+            setCurrentUser(null);
+          }}
         />
       </div>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:block">
