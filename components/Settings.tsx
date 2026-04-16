@@ -669,17 +669,19 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                           const workbook = XLSX.read(data, { type: 'array' });
                           
                           const sheetMap: Record<string, string> = {
-                            "Invoices": "bos_cloud_invoices",
-                            "Clients": "bos_cloud_clients",
-                            "Leads": "bos_cloud_leads",
-                            "Quotations": "bos_cloud_quotations",
-                            "Delivery Challans": "bos_cloud_delivery_challans"
+                            "invoices": "bos_cloud_invoices",
+                            "clients": "bos_cloud_clients",
+                            "leads": "bos_cloud_leads",
+                            "quotations": "bos_cloud_quotations",
+                            "delivery challans": "bos_cloud_delivery_challans",
+                            "delivery_challans": "bos_cloud_delivery_challans"
                           };
 
                           const parsedData: Record<string, string> = {};
 
                           for (const sheetName of workbook.SheetNames) {
-                            if (sheetMap[sheetName]) {
+                            const normalizedName = sheetName.trim().toLowerCase();
+                            if (sheetMap[normalizedName]) {
                               const sheet = workbook.Sheets[sheetName];
                               const rawData = XLSX.utils.sheet_to_json(sheet);
                               
@@ -707,7 +709,7 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                               };
                               
                               const processedData = rawData.map(unflatten);
-                              parsedData[sheetMap[sheetName]] = JSON.stringify(processedData);
+                              parsedData[sheetMap[normalizedName]] = JSON.stringify(processedData);
                             }
                           }
 
