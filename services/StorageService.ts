@@ -59,13 +59,8 @@ export const StorageService = {
     const client = getClient();
     if (client) {
       try {
-        const savedUser = localStorage.getItem('bos_cloud_current_user');
-        const currentUser = savedUser ? JSON.parse(savedUser) : null;
-        
-        if (!currentUser || !currentUser.id) {
-          // Not authenticated locally, just skip cloud sync silently
-          return;
-        }
+        // Since login is removed, we use a default hardcoded ID for syncing
+        const currentUserId = 'admin-1';
 
         syncStatus = 'syncing';
         window.dispatchEvent(new CustomEvent('sync-status-change', { detail: { status: 'syncing' } }));
@@ -73,7 +68,7 @@ export const StorageService = {
         const { error } = await client
           .from('user_data')
           .upsert({ 
-            user_id: currentUser.id,
+            user_id: currentUserId,
             key_id: key, 
             content: data, 
             updated_at: timestamp 
@@ -118,31 +113,29 @@ export const StorageService = {
     const client = getClient();
     if (client) {
       try {
-        const savedUser = localStorage.getItem('bos_cloud_current_user');
-        const currentUser = savedUser ? JSON.parse(savedUser) : null;
+        // Since login is removed, we use a default hardcoded ID for syncing
+        const currentUserId = 'admin-1';
         
-        if (currentUser && currentUser.id) {
-          const { data, error } = await client
-            .from('user_data')
-            .select('content, updated_at')
-            .eq('user_id', currentUser.id)
-            .eq('key_id', key)
-            .single();
+        const { data, error } = await client
+          .from('user_data')
+          .select('content, updated_at')
+          .eq('user_id', currentUserId)
+          .eq('key_id', key)
+          .single();
           
-          if (!error && data) {
-            // Always prefer cloud data if local is empty or default, OR if cloud is newer
-            const isLocalEmpty = !localData || (Array.isArray(localData) && localData.length === 0);
-            
-            if (isLocalEmpty || !localTimestamp || new Date(data.updated_at) >= new Date(localTimestamp)) {
-              // Cloud is newer, same, or local is empty - update local
-              localStorage.setItem(key, JSON.stringify({ data: data.content, timestamp: data.updated_at }));
-              return data.content;
-            } else {
-              // Local is newer and NOT empty, return local and trigger a sync
-              console.warn("Local data is newer than cloud data. Using local data.");
-              this.save(key, localData);
-              return localData;
-            }
+        if (!error && data) {
+          // Always prefer cloud data if local is empty or default, OR if cloud is newer
+          const isLocalEmpty = !localData || (Array.isArray(localData) && localData.length === 0);
+          
+          if (isLocalEmpty || !localTimestamp || new Date(data.updated_at) >= new Date(localTimestamp)) {
+            // Cloud is newer, same, or local is empty - update local
+            localStorage.setItem(key, JSON.stringify({ data: data.content, timestamp: data.updated_at }));
+            return data.content;
+          } else {
+            // Local is newer and NOT empty, return local and trigger a sync
+            console.warn("Local data is newer than cloud data. Using local data.");
+            this.save(key, localData);
+            return localData;
           }
         }
       } catch (e) {

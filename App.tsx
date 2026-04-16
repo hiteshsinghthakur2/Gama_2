@@ -52,10 +52,7 @@ const App: React.FC = () => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   // --- States ---
-  const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
-    const saved = localStorage.getItem('bos_cloud_current_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [currentUser, setCurrentUser] = useState<AppUser>({ id: 'admin-1', username: 'admin', password: '', role: 'admin' });
   const [users, setUsers] = useState<AppUser[]>([]);
   const [userProfile, setUserProfile] = useState<UserBusinessProfile>(INITIAL_USER_PROFILE);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -118,10 +115,8 @@ const App: React.FC = () => {
     
     if (currentUser) {
       hydrate();
-    } else {
-      setIsLoading(false);
     }
-  }, [currentUser?.id]);
+  }, []); // Run once on mount
 
   // --- Auth Listener ---
   useEffect(() => {
@@ -130,13 +125,6 @@ const App: React.FC = () => {
   }, []);
 
   // --- Persistence Effects ---
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('bos_cloud_current_user', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('bos_cloud_current_user');
-    }
-  }, [currentUser]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.USERS, users); }, [users, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.INVOICES, invoices); }, [invoices, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.QUOTATIONS, quotations); }, [quotations, isLoading]);
@@ -605,10 +593,6 @@ const App: React.FC = () => {
     );
   }
 
-  if (!currentUser) {
-    return <Login users={users} onLogin={setCurrentUser} />;
-  }
-
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden relative print:h-auto print:overflow-visible print:block">
       {isSidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm no-print" onClick={() => setIsSidebarOpen(false)} />}
@@ -621,19 +605,6 @@ const App: React.FC = () => {
           onClose={() => setIsSidebarOpen(false)}
           syncState={syncState}
           currentUser={currentUser}
-          onLogout={async () => {
-            // Clear all local storage keys related to the app to ensure data safety on shared devices
-            const keysToRemove = [];
-            for (let i = 0; i < localStorage.length; i++) {
-              const key = localStorage.key(i);
-              if (key && key.startsWith('bos_cloud_')) {
-                keysToRemove.push(key);
-              }
-            }
-            keysToRemove.forEach(key => localStorage.removeItem(key));
-            
-            setCurrentUser(null);
-          }}
         />
       </div>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:block">
