@@ -125,37 +125,8 @@ const App: React.FC = () => {
 
   // --- Auth Listener ---
   useEffect(() => {
-    let subscription: any = null;
-    
-    const setupAuthListener = async () => {
-      const { getClient } = await import('./services/StorageService');
-      const client = getClient();
-      if (client) {
-        // Check initial session
-        const { data: { session } } = await client.auth.getSession();
-        if (!session) {
-          setCurrentUser(null);
-        } else {
-          setCurrentUser(prev => prev ? prev : { id: session.user.id, username: session.user.email || '', password: '', role: 'user' });
-        }
-
-        const { data } = client.auth.onAuthStateChange((event, session) => {
-          if (event === 'SIGNED_OUT') {
-            setCurrentUser(null);
-          } else if (session?.user) {
-            setCurrentUser(prev => prev ? prev : { id: session.user.id, username: session.user.email || '', password: '', role: 'user' });
-          }
-        });
-        subscription = data.subscription;
-      }
-    };
-    setupAuthListener();
-    
-    return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
-    };
+    // Local auth doesn't need a listener.
+    // If we want to check local storage, we already do it in the initial state.
   }, []);
 
   // --- Persistence Effects ---
@@ -651,11 +622,6 @@ const App: React.FC = () => {
           syncState={syncState}
           currentUser={currentUser}
           onLogout={async () => {
-            const { getClient } = await import('./services/StorageService');
-            const client = getClient();
-            if (client) {
-              await client.auth.signOut();
-            }
             // Clear all local storage keys related to the app to ensure data safety on shared devices
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {

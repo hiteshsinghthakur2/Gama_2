@@ -59,9 +59,11 @@ export const StorageService = {
     const client = getClient();
     if (client) {
       try {
-        const { data: userData, error: authError } = await client.auth.getUser();
-        if (authError || !userData?.user) {
-          // Not authenticated, just skip cloud sync silently
+        const savedUser = localStorage.getItem('bos_cloud_current_user');
+        const currentUser = savedUser ? JSON.parse(savedUser) : null;
+        
+        if (!currentUser || !currentUser.id) {
+          // Not authenticated locally, just skip cloud sync silently
           return;
         }
 
@@ -71,7 +73,7 @@ export const StorageService = {
         const { error } = await client
           .from('user_data')
           .upsert({ 
-            user_id: userData.user.id,
+            user_id: currentUser.id,
             key_id: key, 
             content: data, 
             updated_at: timestamp 
@@ -116,12 +118,14 @@ export const StorageService = {
     const client = getClient();
     if (client) {
       try {
-        const { data: userData, error: authError } = await client.auth.getUser();
-        if (!authError && userData?.user) {
+        const savedUser = localStorage.getItem('bos_cloud_current_user');
+        const currentUser = savedUser ? JSON.parse(savedUser) : null;
+        
+        if (currentUser && currentUser.id) {
           const { data, error } = await client
             .from('user_data')
             .select('content, updated_at')
-            .eq('user_id', userData.user.id)
+            .eq('user_id', currentUser.id)
             .eq('key_id', key)
             .single();
           
