@@ -18,6 +18,11 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
   const [supabaseUrl, setSupabaseUrl] = useState((window as any).SUPABASE_URL || '');
   const [supabaseKey, setSupabaseKey] = useState((window as any).SUPABASE_ANON_KEY || '');
 
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+  const [backupData, setBackupData] = useState<Record<string, string> | null>(null);
+  const [selectedRestoreKeys, setSelectedRestoreKeys] = useState<string[]>([]);
+  const [isRestoring, setIsRestoring] = useState(false);
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -550,17 +555,11 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                         const content = event.target?.result as string;
                         const parsedData = JSON.parse(content);
                         
-                        let restoredCount = 0;
-                        for (const key in parsedData) {
-                          if (key.startsWith('bos_cloud_')) {
-                            localStorage.setItem(key, parsedData[key]);
-                            restoredCount++;
-                          }
-                        }
-                        
-                        if (restoredCount > 0) {
-                          alert(`Successfully restored ${restoredCount} records. The application will now reload.`);
-                          window.location.reload();
+                        const validKeys = Object.keys(parsedData).filter(k => k.startsWith('bos_cloud_'));
+                        if (validKeys.length > 0) {
+                          setBackupData(parsedData);
+                          setSelectedRestoreKeys(validKeys);
+                          setRestoreModalOpen(true);
                         } else {
                           alert('No valid backup data found in the file.');
                         }
@@ -588,6 +587,99 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
         </div>
 
       </form>
+
+      {restoreModalOpen && backupData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Preview & Restore Backup</h3>
+            <p className="text-sm text-gray-500 mb-6">Select the data categories you want to restore. This will overwrite your current data for the selected categories.</p>
+            
+            <div className="space-y-3 max-h-[40vh] overflow-y-auto mb-6 pr-2 custom-scrollbar">
+              {Object.keys(backupData).filter(k => k.startsWith('bos_cloud_')).map(key => {
+                const isSelected = selectedRestoreKeys.includes(key);
+                
+                // Format name and count
+                let name = key.replace('bos_cloud_', '').replace(/_/g, ' ');
+                name = name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                
+                let countText = '';
+                try {
+                  const parsed = JSON.parse(backupData[key]);
+                  const data = parsed.data !== undefined ? parsed.data : parsed;
+                  if (Array.isArray(data)) {
+                    countText = `${data.length} records`;
+                  } else if (typeof data === 'object' && data !== null) {
+                    countText = `Settings object`;
+                  }
+                } catch (e) {}
+
+                return (
+                  <label key={key} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="checkbox" 
+                        className="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedRestoreKeys(prev => [...prev, key]);
+                          } else {
+                            setSelectedRestoreKeys(prev => prev.filter(k => k !== key));
+                          }
+                        }}
+                      />
+                      <span className="font-semibold text-gray-700">{name}</span>
+                    </div>
+                    <span className="text-xs font-medium text-gray-500 bg-white px-2 py-1 rounded-md shadow-sm border border-gray-100">{countText}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-gray-100">
+              <button 
+                type="button"
+                onClick={() => { setRestoreModalOpen(false); setBackupData(null); }}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition"
+                disabled={isRestoring}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                disabled={selectedRestoreKeys.length === 0 || isRestoring}
+                onClick={async () => {
+                  setIsRestoring(true);
+                  let restoredCount = 0;
+                  for (const key of selectedRestoreKeys) {
+                    const raw = backupData[key];
+                    if (raw) {
+                      try {
+                        const parsed = JSON.parse(raw);
+                        const dataToSave = parsed.data !== undefined ? parsed.data : parsed;
+                        // Use StorageService.save to ensure it gets a new timestamp and syncs to cloud
+                        await StorageService.save(key, dataToSave);
+                        restoredCount++;
+                      } catch (e) {
+                        console.error("Failed to restore key:", key, e);
+                      }
+                    }
+                  }
+                  alert(`Successfully restored ${restoredCount} categories. The application will now reload.`);
+                  window.location.reload();
+                }}
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition disabled:opacity-50 flex justify-center items-center gap-2"
+              >
+                {isRestoring ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Restoring...</>
+                ) : (
+                  `Restore Selected (${selectedRestoreKeys.length})`
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
