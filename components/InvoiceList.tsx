@@ -313,7 +313,10 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
             <option value="asc">Oldest First</option>
           </select>
         </div>
-        <div className="flex-grow flex justify-end">
+        <div className="flex-grow flex justify-end items-center gap-4">
+          <span className="text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+            Total Invoices: {filteredInvoices.length}
+          </span>
           <button 
             onClick={() => { 
                 setFilterMonth(''); 
