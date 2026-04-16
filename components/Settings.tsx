@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { UserBusinessProfile, Address } from '../types';
 import { INDIAN_STATES } from '../constants';
 import { StorageService } from '../services/StorageService';
+import * as XLSX from 'xlsx';
 
 interface SettingsProps {
   profile: UserBusinessProfile;
@@ -534,13 +535,80 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                   document.body.removeChild(a);
                   URL.revokeObjectURL(url);
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 flex-1"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                Download Backup
+                Backup (.json)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const flatten = (obj: any): any => {
+                    let result: any = {};
+                    for (const i in obj) {
+                      if (typeof obj[i] === 'object' && obj[i] !== null && !Array.isArray(obj[i])) {
+                        const temp = flatten(obj[i]);
+                        for (const j in temp) {
+                          result[i + '_' + j] = temp[j];
+                        }
+                      } else if (Array.isArray(obj[i])) {
+                        // Keep simple array representations or serialize them nicely
+                        result[i] = JSON.stringify(obj[i]);
+                      } else {
+                        result[i] = obj[i];
+                      }
+                    }
+                    return result;
+                  };
+
+                  const getLocalDataArray = (key: string) => {
+                    try {
+                      const raw = localStorage.getItem(key);
+                      if (!raw) return [];
+                      const parsed = JSON.parse(raw);
+                      const data = parsed.data !== undefined ? parsed.data : parsed;
+                      if (Array.isArray(data)) {
+                        return data.map(flatten);
+                      }
+                      return [flatten(data)]; // If it's a single object (like profile)
+                    } catch (e) {
+                      return [];
+                    }
+                  };
+
+                  const wb = XLSX.utils.book_new();
+                  
+                  const invoices = getLocalDataArray('bos_cloud_invoices');
+                  if(invoices.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(invoices), "Invoices");
+                  
+                  const clients = getLocalDataArray('bos_cloud_clients');
+                  if(clients.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clients), "Clients");
+                  
+                  const leads = getLocalDataArray('bos_cloud_leads');
+                  if(leads.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(leads), "Leads");
+                  
+                  const quotes = getLocalDataArray('bos_cloud_quotations');
+                  if(quotes.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(quotes), "Quotations");
+
+                  const challans = getLocalDataArray('bos_cloud_delivery_challans');
+                  if(challans.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(challans), "Delivery Challans");
+
+                  // In case there is no data at all
+                  if (wb.SheetNames.length === 0) {
+                     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ Message: "No data found to backup" }]), "Backup");
+                  }
+
+                  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+                  XLSX.writeFile(wb, `CraftDaddy_Master_Backup_${timestamp}.xlsx`);
+                }}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition flex items-center justify-center gap-2 flex-1"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
+                Backup (.xlsx)
               </button>
               
-              <div className="relative">
+              <div className="relative flex-1">
                 <input
                   type="file"
                   accept=".json"
