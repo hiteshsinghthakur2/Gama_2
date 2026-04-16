@@ -25,6 +25,44 @@ export const getClient = () => {
   return null;
 };
 
+let webhookSyncTimeout: any = null;
+
+const triggerWebhookSync = () => {
+  const webhookUrl = localStorage.getItem('bos_cloud_webhook_url');
+  if (!webhookUrl) return;
+
+  if (webhookSyncTimeout) clearTimeout(webhookSyncTimeout);
+  
+  // Debounce the webhook sync by 3 seconds to avoid spamming the webhook URL
+  webhookSyncTimeout = setTimeout(async () => {
+    try {
+      const payload: Record<string, any> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('bos_cloud_') && key !== 'bos_cloud_webhook_url') {
+          try {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              payload[key] = parsed.data !== undefined ? parsed.data : parsed;
+            }
+          } catch(e) {}
+        }
+      }
+      
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        mode: 'no-cors' // Use no-cors to prevent preflight blocking on some webhooks
+      });
+      console.log('Successfully synced to webhook');
+    } catch (e) {
+      console.error("Webhook sync failed:", e);
+    }
+  }, 3000);
+};
+
 export const StorageService = {
   isCloudEnabled: () => !!getClient(),
   
@@ -55,6 +93,8 @@ export const StorageService = {
     const timestamp = new Date().toISOString();
     // Always save local first, with timestamp
     localStorage.setItem(key, JSON.stringify({ data, timestamp }));
+    
+    triggerWebhookSync();
 
     const client = getClient();
     if (client) {

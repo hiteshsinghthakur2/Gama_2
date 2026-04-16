@@ -510,14 +510,18 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
             <span className="w-1.5 h-6 bg-blue-500 rounded-full"></span>
             Data Management (Backup & Restore)
           </h2>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Download a complete backup of your local data, or restore from a previously downloaded backup file.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={() => {
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <p className="text-sm font-semibold text-gray-800">
+                Manual Local Backup
+              </p>
+              <p className="text-xs text-gray-500">
+                Download a complete backup of your local data, or restore from a previously downloaded file.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
                   const backupData: Record<string, string> = {};
                   for (let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
@@ -722,6 +726,44 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   Restore Backup
+                </button>
+              </div>
+            </div>
+          </div>
+
+            <div className="pt-6 border-t border-gray-100 space-y-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">
+                    Auto-Sync Webhook (Zapier, Make, Google Apps Script)
+                  </p>
+                  <p className="text-xs text-gray-500 max-w-xl mt-1">
+                    Enter a Webhook URL. The app will automatically push your latest data as a JSON payload to this URL in the background whenever changes are saved.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <input
+                  type="url"
+                  placeholder="https://hooks.zapier.com/..."
+                  className="flex-1 p-3 border rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition border-gray-100 text-sm font-medium"
+                  value={localStorage.getItem('bos_cloud_webhook_url') || ''}
+                  onChange={(e) => {
+                    localStorage.setItem('bos_cloud_webhook_url', e.target.value);
+                    // Force a re-render to update the value visually
+                    setFormData({...formData}); 
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = localStorage.getItem('bos_cloud_webhook_url');
+                    if (!url) return alert('Please enter a Webhook URL first.');
+                    alert('Webhook URL saved! Your data will now automatically sync when you make changes.');
+                  }}
+                  className="px-6 py-2 bg-indigo-100 text-indigo-700 rounded-xl font-bold hover:bg-indigo-200 transition"
+                >
+                  Save URL
                 </button>
               </div>
             </div>
