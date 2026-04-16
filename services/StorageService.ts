@@ -47,7 +47,15 @@ const triggerWebhookSync = () => {
             const raw = localStorage.getItem(key);
             if (raw) {
               const parsed = JSON.parse(raw);
-              payload[key] = parsed.data !== undefined ? parsed.data : parsed;
+              let dataToSync = parsed.data !== undefined ? parsed.data : parsed;
+              
+              // Strip logoUrl to prevent huge payloads which crash Google Apps Script limits
+              if (key === 'bos_cloud_business_profile' && dataToSync && dataToSync.logoUrl) {
+                dataToSync = { ...dataToSync };
+                delete dataToSync.logoUrl;
+              }
+              
+              payload[key] = dataToSync;
             }
           } catch(e) {}
         }
@@ -55,7 +63,7 @@ const triggerWebhookSync = () => {
       
       await fetch(webhookUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload),
         mode: 'no-cors' // Use no-cors to prevent preflight blocking on some webhooks
       });

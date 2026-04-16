@@ -798,12 +798,53 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
               {webhookLastSync && (
                 <p className="text-[10px] text-gray-400 font-medium">Last attempted sync: {new Date(webhookLastSync).toLocaleString()}</p>
               )}
-              <div className="bg-yellow-50 text-yellow-800 p-4 rounded-xl border border-yellow-200 mt-4 text-xs shadow-sm">
+              <div className="bg-yellow-50 text-yellow-800 p-4 rounded-xl border border-yellow-200 mt-4 text-xs shadow-sm space-y-2">
                  <strong className="block mb-1">🚨 Important: Direct Google Sheets links WILL NOT WORK.</strong>
-                 You cannot just paste `https://docs.google.com/spreadsheets/d/...` into this field. A webhook URL must be designed to receive an automated `POST` request containing JSON data.<br/><br/>
-                 <strong>How to sync to Google Sheets:</strong><br/>
-                 1. <strong>Easy:</strong> Go to <a href="https://zapier.com/" target="_blank" rel="noreferrer" className="underline font-bold text-yellow-900">Zapier.com</a> or <a href="https://make.com/" target="_blank" rel="noreferrer" className="underline font-bold text-yellow-900">Make.com</a>, create a "Webhook" trigger, and paste the URL they give you here.<br/>
-                 2. <strong>Free (Advanced):</strong> Open your Google Sheet, click "Extensions &gt; Apps Script", and write a `doPost(e)` function to parse the incoming JSON and append it to your sheet. Deploy it as a Web App to get your webhook URL.
+                 You cannot just paste `https://docs.google.com/spreadsheets/d/...` into this field. A webhook URL must be designed to receive an automated `POST` request containing JSON data.
+                 
+                 <div className="mt-2 font-bold font-sm">How to sync to Google Sheets:</div>
+                 <div>
+                   <span>1. <strong>Easy:</strong> Go to <a href="https://zapier.com/" target="_blank" rel="noreferrer" className="underline font-bold text-yellow-900">Zapier.com</a> or <a href="https://make.com/" target="_blank" rel="noreferrer" className="underline font-bold text-yellow-900">Make.com</a>, create a "Webhook" trigger, and paste the URL they give you here.</span>
+                 </div>
+                 <div>
+                   <span>2. <strong>Free & Supported (Apps Script):</strong> Open your Google Sheet, click "Extensions &gt; Apps Script", paste the code below, and Deploy it as a Web App (Access: Anyone). Set your Web App URL above!</span>
+                   <pre className="bg-yellow-900 text-yellow-50 p-2 text-[10px] rounded mt-2 overflow-x-auto select-all">
+{`function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var contents = e.postData ? e.postData.contents : "{}";
+    var payload = JSON.parse(contents);
+    
+    // For each data type, create/update a sheet
+    for (var key in payload) {
+      if (key === 'bos_cloud_business_profile' || !Array.isArray(payload[key]) || payload[key].length === 0) continue;
+      var sheetName = key.replace('bos_cloud_', '');
+      var sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
+      
+      sheet.clear();
+      var headers = Object.keys(payload[key][0]);
+      sheet.appendRow(headers);
+      
+      var rows = [];
+      for (var i = 0; i < payload[key].length; i++) {
+        var row = [];
+        for (var j = 0; j < headers.length; j++) {
+           var val = payload[key][i][headers[j]];
+           if (typeof val === 'object') val = JSON.stringify(val);
+           if (typeof val === 'string' && val.length > 40000) val = val.substring(0, 40000) + "...[truncated]";
+           row.push(val);
+        }
+        rows.push(row);
+      }
+      if (rows.length > 0) sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+    }
+    return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+  } catch (err) {
+    return ContentService.createTextOutput("Error").setMimeType(ContentService.MimeType.TEXT);
+  }
+}`}
+                   </pre>
+                 </div>
               </div>
             </div>
           </div>
