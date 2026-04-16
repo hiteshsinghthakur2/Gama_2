@@ -611,31 +611,105 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
               <div className="relative flex-1">
                 <input
                   type="file"
-                  accept=".json"
+                  accept=".json, .xlsx, .xls"
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
 
                     const reader = new FileReader();
+                    
                     reader.onload = (event) => {
+                      const buffer = event.target?.result as ArrayBuffer;
+                      
+                      // Try reading as JSON first by converting buffer to string
+                      let isJson = false;
                       try {
-                        const content = event.target?.result as string;
-                        const parsedData = JSON.parse(content);
+                        const decoder = new TextDecoder('utf-8');
+                        const text = decoder.decode(buffer);
                         
-                        const validKeys = Object.keys(parsedData).filter(k => k.startsWith('bos_cloud_'));
-                        if (validKeys.length > 0) {
-                          setBackupData(parsedData);
-                          setSelectedRestoreKeys(validKeys);
-                          setRestoreModalOpen(true);
-                        } else {
-                          alert('No valid backup data found in the file.');
+                        // Basic check if text looks like JSON
+                        if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+                          const parsedData = JSON.parse(text);
+                          isJson = true;
+                          
+                          const validKeys = Object.keys(parsedData).filter(k => k.startsWith('bos_cloud_'));
+                          if (validKeys.length > 0) {
+                            setBackupData(parsedData);
+                            setSelectedRestoreKeys(validKeys);
+                            setRestoreModalOpen(true);
+                          } else {
+                            alert('No valid backup data found in the JSON file.');
+                          }
                         }
-                      } catch (error) {
-                        alert('Failed to parse backup file. Please ensure it is a valid JSON backup.');
+                      } catch (e) {
+                        // Not a valid JSON, we will fall through and try Excel
+                      }
+                      
+                      // If it wasn't JSON, try Excel
+                      if (!isJson) {
+                        try {
+                          const data = new Uint8Array(buffer);
+                          const workbook = XLSX.read(data, { type: 'array' });
+                          
+                          const sheetMap: Record<string, string> = {
+                            "Invoices": "bos_cloud_invoices",
+                            "Clients": "bos_cloud_clients",
+                            "Leads": "bos_cloud_leads",
+                            "Quotations": "bos_cloud_quotations",
+                            "Delivery Challans": "bos_cloud_delivery_challans"
+                          };
+
+                          const parsedData: Record<string, string> = {};
+
+                          for (const sheetName of workbook.SheetNames) {
+                            if (sheetMap[sheetName]) {
+                              const sheet = workbook.Sheets[sheetName];
+                              const rawData = XLSX.utils.sheet_to_json(sheet);
+                              
+                              const unflatten = (obj: any): any => {
+                                const result: any = {};
+                                for (const key in obj) {
+                                  let value = obj[key];
+                                  if (typeof value === 'string' && (value.startsWith('[') || value.startsWith('{'))) {
+                                    try { value = JSON.parse(value); } catch(e) {}
+                                  }
+                                  
+                                  if (key.includes('_')) {
+                                    const parts = key.split('_');
+                                    let current = result;
+                                    for (let i = 0; i < parts.length - 1; i++) {
+                                      if (!current[parts[i]]) current[parts[i]] = {};
+                                      current = current[parts[i]];
+                                    }
+                                    current[parts[parts.length - 1]] = value;
+                                  } else {
+                                    result[key] = value;
+                                  }
+                                }
+                                return result;
+                              };
+                              
+                              const processedData = rawData.map(unflatten);
+                              parsedData[sheetMap[sheetName]] = JSON.stringify(processedData);
+                            }
+                          }
+
+                          const validKeys = Object.keys(parsedData);
+                          if (validKeys.length > 0) {
+                            setBackupData(parsedData);
+                            setSelectedRestoreKeys(validKeys);
+                            setRestoreModalOpen(true);
+                          } else {
+                            alert('No valid backup data found in the Excel file.');
+                          }
+                        } catch (error) {
+                          alert('Failed to parse backup file. Please ensure it is a valid JSON or Excel Master Backup file.');
+                        }
                       }
                     };
-                    reader.readAsText(file);
+                    
+                    reader.readAsArrayBuffer(file);
                     
                     if (e.target) {
                         e.target.value = '';
@@ -672,7 +746,8 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                 
                 let countText = '';
                 try {
-                  const parsed = JSON.parse(backupData[key]);
+                  const raw = backupData[key];
+                  const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
                   const data = parsed.data !== undefined ? parsed.data : parsed;
                   if (Array.isArray(data)) {
                     countText = `${data.length} records`;
@@ -723,7 +798,7 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                     const raw = backupData[key];
                     if (raw) {
                       try {
-                        const parsed = JSON.parse(raw);
+                        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
                         const dataToSave = parsed.data !== undefined ? parsed.data : parsed;
                         // Use StorageService.save to ensure it gets a new timestamp and syncs to cloud
                         await StorageService.save(key, dataToSave);
