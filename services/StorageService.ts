@@ -36,10 +36,13 @@ const triggerWebhookSync = () => {
   // Debounce the webhook sync by 3 seconds to avoid spamming the webhook URL
   webhookSyncTimeout = setTimeout(async () => {
     try {
+      localStorage.setItem('bos_cloud_webhook_sync_status', 'syncing');
+      window.dispatchEvent(new Event('webhook-sync-update'));
+
       const payload: Record<string, any> = {};
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('bos_cloud_') && key !== 'bos_cloud_webhook_url') {
+        if (key && key.startsWith('bos_cloud_') && key !== 'bos_cloud_webhook_url' && key !== 'bos_cloud_webhook_sync_status' && key !== 'bos_cloud_webhook_last_sync') {
           try {
             const raw = localStorage.getItem(key);
             if (raw) {
@@ -56,9 +59,15 @@ const triggerWebhookSync = () => {
         body: JSON.stringify(payload),
         mode: 'no-cors' // Use no-cors to prevent preflight blocking on some webhooks
       });
+      localStorage.setItem('bos_cloud_webhook_sync_status', 'success');
+      localStorage.setItem('bos_cloud_webhook_last_sync', new Date().toISOString());
+      window.dispatchEvent(new Event('webhook-sync-update'));
       console.log('Successfully synced to webhook');
     } catch (e) {
-      console.error("Webhook sync failed:", e);
+      console.error('Failed to sync to webhook', e);
+      localStorage.setItem('bos_cloud_webhook_sync_status', 'error');
+      localStorage.setItem('bos_cloud_webhook_last_sync', new Date().toISOString());
+      window.dispatchEvent(new Event('webhook-sync-update'));
     }
   }, 3000);
 };
@@ -87,6 +96,10 @@ export const StorageService = {
     } catch (e: any) {
       return { success: false, message: e.message || 'Table user_data not found or RLS policy blocked access.' };
     }
+  },
+
+  forceWebhookSync: () => {
+    triggerWebhookSync();
   },
 
   async save(key: string, data: any) {

@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UserBusinessProfile, Address } from '../types';
 import { INDIAN_STATES } from '../constants';
 import { StorageService } from '../services/StorageService';
@@ -23,6 +23,18 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
   const [backupData, setBackupData] = useState<Record<string, string> | null>(null);
   const [selectedRestoreKeys, setSelectedRestoreKeys] = useState<string[]>([]);
   const [isRestoring, setIsRestoring] = useState(false);
+
+  const [webhookSyncStatus, setWebhookSyncStatus] = useState<string>(localStorage.getItem('bos_cloud_webhook_sync_status') || 'idle');
+  const [webhookLastSync, setWebhookLastSync] = useState<string>(localStorage.getItem('bos_cloud_webhook_last_sync') || '');
+
+  useEffect(() => {
+    const handleWebhookUpdate = () => {
+      setWebhookSyncStatus(localStorage.getItem('bos_cloud_webhook_sync_status') || 'idle');
+      setWebhookLastSync(localStorage.getItem('bos_cloud_webhook_last_sync') || '');
+    };
+    window.addEventListener('webhook-sync-update', handleWebhookUpdate);
+    return () => window.removeEventListener('webhook-sync-update', handleWebhookUpdate);
+  }, []);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -734,8 +746,11 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
             <div className="pt-6 border-t border-gray-100 space-y-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">
+                  <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                     Auto-Sync Webhook (Zapier, Make, Google Apps Script)
+                    {webhookSyncStatus === 'syncing' && <span className="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Syncing...</span>}
+                    {webhookSyncStatus === 'success' && <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Success</span>}
+                    {webhookSyncStatus === 'error' && <span className="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Failed</span>}
                   </p>
                   <p className="text-xs text-gray-500 max-w-xl mt-1">
                     Enter a Webhook URL. The app will automatically push your latest data as a JSON payload to this URL in the background whenever changes are saved.
@@ -765,6 +780,30 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                 >
                   Save URL
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = localStorage.getItem('bos_cloud_webhook_url');
+                    if (!url) return alert('Please enter a Webhook URL first.');
+                    if (confirm('A Webhook URL expects to be sent a JSON post payload. A direct Google Sheets link will NOT work here. You must use Zapier, Make, or a custom Google Apps Script Web App.\n\nAre you sure you want to force sync to this URL?')) {
+                      StorageService.forceWebhookSync();
+                    }
+                  }}
+                  className="px-6 py-2 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition shadow flex gap-2 items-center"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                  Sync Now
+                </button>
+              </div>
+              {webhookLastSync && (
+                <p className="text-[10px] text-gray-400 font-medium">Last attempted sync: {new Date(webhookLastSync).toLocaleString()}</p>
+              )}
+              <div className="bg-yellow-50 text-yellow-800 p-4 rounded-xl border border-yellow-200 mt-4 text-xs shadow-sm">
+                 <strong className="block mb-1">🚨 Important: Direct Google Sheets links WILL NOT WORK.</strong>
+                 You cannot just paste `https://docs.google.com/spreadsheets/d/...` into this field. A webhook URL must be designed to receive an automated `POST` request containing JSON data.<br/><br/>
+                 <strong>How to sync to Google Sheets:</strong><br/>
+                 1. <strong>Easy:</strong> Go to <a href="https://zapier.com/" target="_blank" rel="noreferrer" className="underline font-bold text-yellow-900">Zapier.com</a> or <a href="https://make.com/" target="_blank" rel="noreferrer" className="underline font-bold text-yellow-900">Make.com</a>, create a "Webhook" trigger, and paste the URL they give you here.<br/>
+                 2. <strong>Free (Advanced):</strong> Open your Google Sheet, click "Extensions &gt; Apps Script", and write a `doPost(e)` function to parse the incoming JSON and append it to your sheet. Deploy it as a Web App to get your webhook URL.
               </div>
             </div>
           </div>
