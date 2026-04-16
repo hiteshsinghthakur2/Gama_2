@@ -498,6 +498,94 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
           <SectionSaveButton />
         </div>
 
+        {/* Data Management (Backup & Restore) */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-blue-500 rounded-full"></span>
+            Data Management (Backup & Restore)
+          </h2>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Download a complete backup of your local data, or restore from a previously downloaded backup file.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  const backupData: Record<string, string> = {};
+                  for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('bos_cloud_')) {
+                      backupData[key] = localStorage.getItem(key) || '';
+                    }
+                  }
+                  const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `craft_daddy_backup_${new Date().toISOString().split('T')[0]}.json`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Download Backup
+              </button>
+              
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".json"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      try {
+                        const content = event.target?.result as string;
+                        const parsedData = JSON.parse(content);
+                        
+                        let restoredCount = 0;
+                        for (const key in parsedData) {
+                          if (key.startsWith('bos_cloud_')) {
+                            localStorage.setItem(key, parsedData[key]);
+                            restoredCount++;
+                          }
+                        }
+                        
+                        if (restoredCount > 0) {
+                          alert(`Successfully restored ${restoredCount} records. The application will now reload.`);
+                          window.location.reload();
+                        } else {
+                          alert('No valid backup data found in the file.');
+                        }
+                      } catch (error) {
+                        alert('Failed to parse backup file. Please ensure it is a valid JSON backup.');
+                      }
+                    };
+                    reader.readAsText(file);
+                    
+                    if (e.target) {
+                        e.target.value = '';
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition flex items-center justify-center gap-2 border border-gray-300"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                  Restore Backup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
       </form>
     </div>
