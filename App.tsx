@@ -281,9 +281,10 @@ const App: React.FC = () => {
           reader.readAsDataURL(file);
         });
 
-        const parsedData = await parseInvoiceFromImage(base64Data, file.type);
+        const parseResult = await parseInvoiceFromImage(base64Data, file.type);
         
-        if (parsedData) {
+        if (parseResult && parseResult.success) {
+          const parsedData = parseResult.data;
           // Try to match client by name or GSTIN
           let matchedClient = updatedClients.find(c => 
             (parsedData.clientName && c.name.toLowerCase() === parsedData.clientName.toLowerCase()) ||
@@ -334,9 +335,11 @@ const App: React.FC = () => {
           newInvoices.push(newInvoice);
         } else {
           console.warn(`Could not extract details from file: ${file.name}`);
+          alert(`Failed to extract from ${file.name}: ${parseResult?.error || 'Unknown error'}`);
         }
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
+        alert(`Failed to process ${file.name}: ${error}`);
       }
     }
 
@@ -361,7 +364,8 @@ const App: React.FC = () => {
         alert(`Successfully processed and saved ${newInvoices.length} out of ${files.length} invoices!`);
       }
     } else {
-      alert("Could not extract invoice details from the uploaded files.");
+      // alert already triggered in local failure catch
+      // alert("Could not extract invoice details from the uploaded files.");
     }
 
     setIsUploadingBill(false);

@@ -16,8 +16,7 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
   try {
     const apiKey = getApiKey();
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
-      console.warn('Gemini API functionality is disabled because GEMINI_API_KEY is missing or empty in environment variables.');
-      return null;
+      throw new Error("GEMINI_API_KEY is missing or empty in environment variables. Please add it in your Vercel settings or .env file.");
     }
 
     const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
@@ -34,7 +33,7 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.5-flash',
       contents: { parts: [imagePart, textPart] },
       config: {
         responseMimeType: 'application/json',
@@ -62,24 +61,23 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
                   rate: { type: Type.NUMBER, description: 'Unit rate' },
                   taxRate: { type: Type.NUMBER, description: 'Tax rate percentage (e.g., 18)' },
                 },
-                required: ['description', 'qty', 'rate', 'taxRate'],
+                required: ['description'],
               }
             }
-          },
-          required: ['number', 'date', 'clientName', 'items'],
+          }
         }
       }
     });
 
     let text = response.text;
-    if (!text) return null;
+    if (!text) throw new Error("No text returned by the AI.");
     
     text = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
     
-    return JSON.parse(text);
+    return { success: true, data: JSON.parse(text) };
   } catch (error: any) {
     console.error('Gemini AI Service Error (parseInvoiceFromImage):', error?.message || error);
-    return null;
+    return { success: false, error: error?.message || 'Unknown processing error' };
   }
 };
 
