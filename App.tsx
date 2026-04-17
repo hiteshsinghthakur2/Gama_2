@@ -49,6 +49,15 @@ const App: React.FC = () => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isUploadingBill, setIsUploadingBill] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{current: number, total: number} | null>(null);
+
+  const [uploadConflicts, setUploadConflicts] = useState<{
+    conflicting: { parsed: Invoice; existing: Invoice }[];
+    strictlyNew: Invoice[];
+    updatedClients: Client[];
+    totalFiles: number;
+    clientsChanged: boolean;
+  } | null>(null);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   // --- States ---
@@ -265,7 +274,8 @@ const App: React.FC = () => {
     setIsUploadingBill(true);
     setUploadProgress({ current: 0, total: files.length });
     
-    let newInvoices: Invoice[] = [];
+    let strictlyNew: Invoice[] = [];
+    let conflicting: { parsed: Invoice; existing: Invoice }[] = [];
     let updatedClients = [...clients];
     let clientsChanged = false;
 
@@ -313,9 +323,12 @@ const App: React.FC = () => {
             clientId = updatedClients[0]?.id || '';
           }
 
+          const parsedNumber = parsedData.number;
+          const newNumber = parsedNumber || `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
+
           const newInvoice: Invoice = {
             id: `inv-${Date.now()}-${i}`,
-            number: parsedData.number || `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`,
+            number: newNumber,
             date: parsedData.date || new Date().toISOString().split('T')[0],
             dueDate: parsedData.dueDate || '',
             status: InvoiceStatus.DRAFT,
@@ -332,7 +345,15 @@ const App: React.FC = () => {
             bankDetails: userProfile.bankAccounts[0],
             terms: userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
           };
-          newInvoices.push(newInvoice);
+
+          // Check for conflicts ONLY if a number was actually extracted
+          const existing = parsedNumber ? invoices.find(inv => inv.number.toLowerCase() === parsedNumber.toLowerCase()) : undefined;
+          
+          if (existing) {
+            conflicting.push({ parsed: newInvoice, existing });
+          } else {
+            strictlyNew.push(newInvoice);
+          }
         } else {
           console.warn(`Could not extract details from file: ${file.name}`);
           alert(`Failed to extract from ${file.name}: ${parseResult?.error || 'Unknown error'}`);
@@ -343,34 +364,69 @@ const App: React.FC = () => {
       }
     }
 
-    if (newInvoices.length > 0) {
-      if (files.length === 1) {
-        // If only one file, open it in the editor for review
-        setEditingInvoice(newInvoices[0]);
-        if (clientsChanged) {
-          setClients(updatedClients);
-          StorageService.save(STORAGE_KEYS.CLIENTS, updatedClients);
-        }
-      } else {
-        // If multiple files, save them directly to the list
-        const finalInvoices = [...newInvoices, ...invoices];
-        setInvoices(finalInvoices);
-        StorageService.save(STORAGE_KEYS.INVOICES, finalInvoices);
-        
-        if (clientsChanged) {
-          setClients(updatedClients);
-          StorageService.save(STORAGE_KEYS.CLIENTS, updatedClients);
-        }
-        alert(`Successfully processed and saved ${newInvoices.length} out of ${files.length} invoices!`);
-      }
+    if (conflicting.length > 0) {
+      setUploadConflicts({ conflicting, strictlyNew, updatedClients, totalFiles: files.length, clientsChanged });
+      setIsUploadingBill(false);
+      setUploadProgress(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return; 
     } else {
-      // alert already triggered in local failure catch
-      // alert("Could not extract invoice details from the uploaded files.");
+      finalizeUpload(strictlyNew, updatedClients, files.length, clientsChanged);
+    }
+  };
+
+  const finalizeUpload = (invoicesToApply: Invoice[], newClients: Client[], filesCount: number, hasClientsChanged: boolean) => {
+    if (invoicesToApply.length === 0 && filesCount > 0) {
+      setIsUploadingBill(false);
+      setUploadProgress(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    let finalInvoices = [...invoices];
+    
+    invoicesToApply.forEach(inv => {
+      const index = finalInvoices.findIndex(existing => existing.id === inv.id);
+      if (index !== -1) {
+        finalInvoices[index] = inv;
+      } else {
+        finalInvoices.unshift(inv);
+      }
+    });
+
+    if (hasClientsChanged) {
+      setClients(newClients);
+      StorageService.save(STORAGE_KEYS.CLIENTS, newClients);
+    }
+
+    if (filesCount === 1 && invoicesToApply.length === 1) {
+      setEditingInvoice(invoicesToApply[0]);
+    } else if (invoicesToApply.length > 0) {
+      setInvoices(finalInvoices);
+      StorageService.save(STORAGE_KEYS.INVOICES, finalInvoices);
+      alert(`Successfully processed and saved ${invoicesToApply.length} invoices!`);
     }
 
     setIsUploadingBill(false);
     setUploadProgress(null);
+    setUploadConflicts(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleResolveUploads = (action: 'skip' | 'update') => {
+    if (!uploadConflicts) return;
+
+    let invoicesToSave = [...uploadConflicts.strictlyNew];
+
+    if (action === 'update') {
+      const parsedToUpdate = uploadConflicts.conflicting.map(c => ({
+        ...c.parsed,
+        id: c.existing.id // Retain existing system ID so it replaces instead of prepends
+      }));
+      invoicesToSave = [...invoicesToSave, ...parsedToUpdate];
+    }
+
+    finalizeUpload(invoicesToSave, uploadConflicts.updatedClients, uploadConflicts.totalFiles, uploadConflicts.clientsChanged);
   };
 
   const renderContent = () => {
@@ -625,6 +681,56 @@ const App: React.FC = () => {
           </div>
         </header>
         <main className="flex-1 overflow-y-auto print:block">{renderContent()}</main>
+
+        {uploadConflicts && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 animate-in zoom-in-95 duration-200">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Duplicate Invoices Detected</h3>
+              <p className="text-sm text-gray-500 mb-6 font-medium">The following invoices you uploaded already exist in your system. Do you want to update them with this new data?</p>
+              
+              <div className="max-h-60 overflow-y-auto mb-6 custom-scrollbar border rounded-xl shadow-sm">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-gray-500 font-bold sticky top-0 border-b shadow-sm">
+                    <tr>
+                      <th className="p-3">Invoice #</th>
+                      <th className="p-3">Client</th>
+                      <th className="p-3">Current Status</th>
+                      <th className="p-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {uploadConflicts.conflicting.map(c => (
+                      <tr key={c.parsed.number} className="hover:bg-gray-50">
+                        <td className="p-3 font-semibold text-gray-900">{c.parsed.number}</td>
+                        <td className="p-3 text-gray-600">{clients.find(client => client.id === c.parsed.clientId)?.name || c.parsed.clientId || 'Unknown'}</td>
+                        <td className="p-3">
+                          <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold">{c.existing.status}</span>
+                        </td>
+                        <td className="p-3 text-right text-orange-600 font-semibold text-xs uppercase tracking-wider">Will Overwrite</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="flex justify-end gap-3 pt-2">
+                <button 
+                  onClick={() => handleResolveUploads('skip')}
+                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition"
+                >
+                  Skip Existing
+                </button>
+                <button 
+                  onClick={() => handleResolveUploads('update')}
+                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition"
+                >
+                  Update Existing
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
