@@ -12,7 +12,9 @@ const getApiKey = () => {
   return "";
 };
 
-export const parseInvoiceFromImage = async (base64Data: string, mimeType: string) => {
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export const parseInvoiceFromImage = async (base64Data: string, mimeType: string, retries = 3): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
     const apiKey = getApiKey();
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
@@ -76,8 +78,27 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
     
     return { success: true, data: JSON.parse(text) };
   } catch (error: any) {
-    console.error('Gemini AI Service Error (parseInvoiceFromImage):', error?.message || error);
-    return { success: false, error: error?.message || 'Unknown processing error' };
+    const errorMsg = error?.message || '';
+    
+    // Automatically retry if it's a rate limit error
+    if ((errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota')) && retries > 0) {
+      console.warn(`Rate limit hit, retrying parsing... (${retries} retries left). Message: ${errorMsg}`);
+      
+      let waitTime = 15000; // Default 15s wait
+      const match = errorMsg.match(/retry in (\d+(\.\d+)?)s/i);
+      if (match && match[1]) {
+        waitTime = Math.ceil(parseFloat(match[1])) * 1000 + 1000; // Extracted time + 1s padding
+      }
+      
+      // Safety cap wait time to 60 seconds to prevent massive lockups in UI
+      waitTime = Math.min(waitTime, 60000);
+      
+      await delay(waitTime);
+      return parseInvoiceFromImage(base64Data, mimeType, retries - 1);
+    }
+
+    console.error('Gemini AI Service Error (parseInvoiceFromImage):', errorMsg || error);
+    return { success: false, error: errorMsg || 'Unknown processing error' };
   }
 };
 
