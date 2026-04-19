@@ -727,9 +727,9 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                     </div>
                 </div>
                 <div className="p-5 flex-1 bg-white">
-                    <div className="mb-4 flex gap-2">
+                    <div className="mb-4 flex flex-wrap sm:flex-nowrap gap-2">
                       <select 
-                          className="border border-gray-200 rounded-md flex-1 p-2 bg-white text-sm focus:border-indigo-500 outline-none"
+                          className="border border-gray-200 rounded-md flex-1 min-w-[150px] p-2 bg-white text-sm focus:border-indigo-500 outline-none"
                           value={document.clientId}
                           onChange={handleClientChange}
                       >
@@ -739,7 +739,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                       <button 
                           type="button"
                           onClick={openNewClientModal}
-                          className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md text-sm font-bold transition flex items-center gap-1"
+                          className="bg-gray-100 shrink-0 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md text-sm font-bold transition flex items-center justify-center gap-1 w-full sm:w-auto"
                           title="Add New Client"
                       >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
