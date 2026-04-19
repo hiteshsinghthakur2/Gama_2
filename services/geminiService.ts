@@ -150,6 +150,74 @@ export const fetchGSTDetailsFromGemini = async (gstin: string) => {
   }
 };
 
+export const parseBankStatementFromImage = async (base64Data: string, mimeType: string, retries = 3): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const apiKey = getApiKey();
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
+      throw new Error("GEMINI_API_KEY is missing or empty in environment variables. Please add it in your Vercel settings or .env file.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+
+    const imagePart = {
+      inlineData: {
+        mimeType: mimeType,
+        data: base64Data,
+      },
+    };
+
+    const textPart = {
+      text: "Analyze this bank statement. Extract ONLY the INCOMING (Credit/Deposit) transactions. Completely ignore any debits, withdrawals, or closing balances. For every deposit, provide the Date, Description (particulars or reference), and the exact Amount deposited. Return it in JSON format.",
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [imagePart, textPart] },
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            transactions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  date: { type: Type.STRING, description: 'Transaction Date' },
+                  description: { type: Type.STRING, description: 'Transaction Description / Particulars' },
+                  amount: { type: Type.NUMBER, description: 'Exact deposited amount' }
+                },
+                required: ['date', 'description', 'amount'],
+              }
+            }
+          }
+        }
+      }
+    });
+
+    let text = response.text;
+    if (!text) throw new Error("No text returned by the AI.");
+    text = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+    
+    return { success: true, data: JSON.parse(text) };
+  } catch (error: any) {
+    const errorMsg = error?.message || '';
+    if ((errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota')) && retries > 0) {
+      console.warn(`Rate limit hit, retrying bank statement parsing... (${retries} retries left)`);
+      let waitTime = 15000;
+      const match = errorMsg.match(/retry in (\d+(\.\d+)?)s/i);
+      if (match && match[1]) {
+        waitTime = Math.ceil(parseFloat(match[1])) * 1000 + 1000;
+      }
+      waitTime = Math.min(waitTime, 60000);
+      await delay(waitTime);
+      return parseBankStatementFromImage(base64Data, mimeType, retries - 1);
+    }
+    console.error('Gemini AI Service Error (parseBankStatementFromImage):', errorMsg || error);
+    return { success: false, error: errorMsg || 'Unknown processing error' };
+  }
+};
+
 export const suggestLineItemsFromPrompt = async (prompt: string) => {
   try {
     const apiKey = getApiKey();

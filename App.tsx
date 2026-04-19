@@ -28,7 +28,8 @@ import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import UserProfile from './components/UserProfile';
 import ExportInvoicesModal from './components/ExportInvoicesModal';
-import { parseInvoiceFromImage } from './services/geminiService';
+import { parseInvoiceFromImage, parseBankStatementFromImage } from './services/geminiService';
+import { calculateDocumentTotal } from './services/Calculations';
 import Tools from './components/Tools';
 
 const STORAGE_KEYS = {
@@ -59,6 +60,13 @@ const App: React.FC = () => {
   } | null>(null);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // --- Bank Statement Reconciliation State ---
+  const statementInputRef = React.useRef<HTMLInputElement>(null);
+  const [isReconciling, setIsReconciling] = useState(false);
+  const [reconciliationData, setReconciliationData] = useState<{
+    transactions: { id: string; date: string; description: string; amount: number; matchedInvoiceId: string | null }[];
+  } | null>(null);
   
   // --- States ---
   const [currentUser, setCurrentUser] = useState<AppUser>({ id: 'admin-1', username: 'admin', password: '', role: 'admin' });
@@ -429,6 +437,67 @@ const App: React.FC = () => {
     finalizeUpload(invoicesToSave, uploadConflicts.updatedClients, uploadConflicts.totalFiles, uploadConflicts.clientsChanged);
   };
 
+  const handleUploadStatement = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    setIsReconciling(true);
+    setUploadProgress({ current: 1, total: 1 });
+
+    const file = files[0]; // Process one bank statement at a time
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      const base64String = event.target?.result?.toString().split(',')[1];
+      if (base64String) {
+        const parseResult = await parseBankStatementFromImage(base64String, file.type);
+        if (parseResult && parseResult.success && parseResult.data?.transactions) {
+          
+          const unpaidInvoices = invoices.filter(inv => inv.status !== InvoiceStatus.PAID);
+          
+          const transactions = parseResult.data.transactions.map((tx: any, idx: number) => {
+             // Attempt auto-match by exactly matching the document total
+             let matchedInvoiceId: string | null = null;
+             
+             // Look for an exact unpaid match
+             const matchedInvoice = unpaidInvoices.find(inv => {
+                const total = calculateDocumentTotal(inv);
+                // Allow a tiny margin of error for floating points
+                return Math.abs(total - tx.amount) < 0.1;
+             });
+
+             if (matchedInvoice) {
+                matchedInvoiceId = matchedInvoice.id;
+             }
+
+             return {
+                id: `tx-${Date.now()}-${idx}`,
+                date: tx.date || '',
+                description: tx.description || '',
+                amount: typeof tx.amount === 'number' ? tx.amount : parseFloat(tx.amount?.toString() || '0'),
+                matchedInvoiceId
+             };
+          });
+
+          setReconciliationData({ transactions });
+        } else {
+          alert(`Failed to extract transactions: ${parseResult?.error || 'Unknown error'}`);
+        }
+      }
+      setIsReconciling(false);
+      setUploadProgress(null);
+      if (statementInputRef.current) statementInputRef.current.value = '';
+    };
+
+    reader.onerror = () => {
+      alert("Failed to read file.");
+      setIsReconciling(false);
+      setUploadProgress(null);
+    };
+
+    reader.readAsDataURL(file);
+  };
+
   const renderContent = () => {
     if (isLoading) return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
@@ -449,6 +518,25 @@ const App: React.FC = () => {
                 <p className="text-xs md:text-sm text-gray-500">Manage billing for {userProfile.companyName}</p>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <input 
+                  type="file" 
+                  accept="image/*,application/pdf" 
+                  className="hidden" 
+                  ref={statementInputRef} 
+                  onChange={handleUploadStatement} 
+                />
+                <button 
+                  onClick={() => statementInputRef.current?.click()}
+                  disabled={isReconciling}
+                  className="w-full sm:w-auto bg-[#c5f5e8] text-emerald-900 border border-emerald-200 px-5 py-3 rounded-xl hover:bg-[#b0ecd9] transition font-bold shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isReconciling ? (
+                    <div className="w-5 h-5 border-2 border-emerald-900 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  )}
+                  {isReconciling ? 'Checking Bank...' : 'Reconcile'}
+                </button>
                 <input 
                   type="file" 
                   accept="image/*,application/pdf" 
@@ -726,6 +814,133 @@ const App: React.FC = () => {
                 >
                   Update Existing
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {reconciliationData && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full p-6 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+              <div className="flex justify-between items-center mb-6 shrink-0">
+                 <div>
+                   <h3 className="text-xl font-bold text-gray-900">Bank Statement Reconciliation</h3>
+                   <p className="text-sm text-gray-500 font-medium">Map incoming bank deposits to your unpaid invoices.</p>
+                 </div>
+                 <button onClick={() => setReconciliationData(null)} className="text-gray-400 hover:text-gray-600">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                 </button>
+              </div>
+              
+              <div className="min-h-0 flex-1 overflow-y-auto mb-6 custom-scrollbar border rounded-xl shadow-sm">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[#f8fafc] text-slate-500 font-bold sticky top-0 border-b shadow-sm z-10">
+                    <tr>
+                      <th className="p-3 w-1/4">Date & Desc</th>
+                      <th className="p-3 w-1/6">Received</th>
+                      <th className="p-3">Matched Unpaid Invoice</th>
+                      <th className="p-3 w-[120px] text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {reconciliationData.transactions.length === 0 ? (
+                       <tr><td colSpan={4} className="p-8 text-center text-gray-500 font-medium">No incoming transactions found on this statement.</td></tr>
+                    ) : (
+                       reconciliationData.transactions.map((tx, idx) => (
+                         <tr key={tx.id} className="hover:bg-slate-50/50">
+                           <td className="p-3">
+                             <div className="font-bold text-gray-900">{tx.date}</div>
+                             <div className="text-xs text-slate-500 truncate max-w-[200px]" title={tx.description}>{tx.description}</div>
+                           </td>
+                           <td className="p-3 font-mono font-bold text-emerald-600 whitespace-nowrap">
+                             ₹{tx.amount.toLocaleString('en-IN', {minimumFractionDigits: 2})}
+                           </td>
+                           <td className="p-3">
+                              <select 
+                                className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 bg-white"
+                                value={tx.matchedInvoiceId || ''}
+                                onChange={(e) => {
+                                   const newId = e.target.value === '' ? null : e.target.value;
+                                   setReconciliationData({
+                                      transactions: reconciliationData.transactions.map(t => t.id === tx.id ? {...t, matchedInvoiceId: newId} : t)
+                                   });
+                                }}
+                              >
+                                 <option value="">-- No Match --</option>
+                                 {invoices.filter(i => i.status !== InvoiceStatus.PAID).map(inv => {
+                                    const client = clients.find(c => c.id === inv.clientId);
+                                    const invTotal = calculateDocumentTotal(inv);
+                                    return (
+                                      <option key={inv.id} value={inv.id}>
+                                         {inv.number} - {client?.name || 'Unknown'} (₹{invTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})})
+                                      </option>
+                                    );
+                                 })}
+                              </select>
+                           </td>
+                           <td className="p-3 text-right">
+                              {tx.matchedInvoiceId ? (
+                                <button
+                                   onClick={() => {
+                                      // Apply payment
+                                      const updatedInvoices = invoices.map(i => i.id === tx.matchedInvoiceId ? {...i, status: InvoiceStatus.PAID} : i);
+                                      setInvoices(updatedInvoices);
+                                      StorageService.save(STORAGE_KEYS.INVOICES, updatedInvoices);
+                                      
+                                      // Remove transaction from list once processed
+                                      setReconciliationData({
+                                         transactions: reconciliationData.transactions.filter(t => t.id !== tx.id)
+                                      });
+                                   }}
+                                   className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg transition"
+                                >
+                                   Mark Paid
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Unlinked</span>
+                              )}
+                           </td>
+                         </tr>
+                       ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="flex justify-between items-center shrink-0 pt-2 border-t">
+                <span className="text-sm font-bold text-gray-500">
+                   {reconciliationData.transactions.filter(t => t.matchedInvoiceId).length} Matches Ready
+                </span>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setReconciliationData(null)}
+                    className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition"
+                  >
+                    Close
+                  </button>
+                  <button 
+                    onClick={() => {
+                       // Process all matched ones automatically
+                       const matchedTransactions = reconciliationData.transactions.filter(t => t.matchedInvoiceId);
+                       if (matchedTransactions.length === 0) return;
+                       
+                       let updatedInvoices = [...invoices];
+                       matchedTransactions.forEach(tx => {
+                          const idx = updatedInvoices.findIndex(i => i.id === tx.matchedInvoiceId);
+                          if (idx !== -1) updatedInvoices[idx] = {...updatedInvoices[idx], status: InvoiceStatus.PAID};
+                       });
+                       
+                       setInvoices(updatedInvoices);
+                       StorageService.save(STORAGE_KEYS.INVOICES, updatedInvoices);
+                       setReconciliationData(null);
+                       alert(`Successfully marked ${matchedTransactions.length} invoices as Paid!`);
+                    }}
+                    disabled={reconciliationData.transactions.filter(t => t.matchedInvoiceId).length === 0}
+                    className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  >
+                    Process All Matched
+                  </button>
+                </div>
               </div>
             </div>
           </div>
