@@ -70,7 +70,7 @@ interface DocumentFormProps {
   mode?: 'invoice' | 'quotation' | 'delivery-challan';
   onConvertToInvoice?: (quotation: Quotation) => void;
   existingInvoices?: Invoice[];
-  onEditClient?: (client: Client) => void;
+  onSaveClient?: (client: Client) => void;
 }
 
 const InvoiceForm: React.FC<DocumentFormProps> = ({ 
@@ -82,7 +82,8 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
   mode = 'invoice',
   onConvertToInvoice,
   existingInvoices = [],
-  onEditClient
+  onEditClient,
+  onSaveClient
 }) => {
   // Use a generic state that matches the structure of both Invoice and Quotation
   // We'll treat 'dueDate' as 'validUntil' when in quotation mode
@@ -163,6 +164,34 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
   
   const isQuotation = mode === 'quotation';
   const isDeliveryChallan = mode === 'delivery-challan';
+
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [clientFormState, setClientFormState] = useState<Client>({
+    id: '', name: '', email: '', phone: '', gstin: '', pan: '',
+    address: { street: '', city: '', state: 'Delhi', stateCode: '07', pincode: '', country: 'India' }
+  });
+
+  const openNewClientModal = () => {
+    setClientFormState({
+      id: `client-${Date.now()}`, name: '', email: '', phone: '', gstin: '', pan: '',
+      address: { street: '', city: '', state: 'Delhi', stateCode: '07', pincode: '', country: 'India' }
+    });
+    setIsClientModalOpen(true);
+  };
+
+  const openEditClientModal = (client: Client) => {
+    setClientFormState({ ...client });
+    setIsClientModalOpen(true);
+  };
+
+  const submitClientModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onSaveClient) {
+      onSaveClient(clientFormState);
+      setDocument((prev: any) => ({ ...prev, clientId: clientFormState.id }));
+      setIsClientModalOpen(false);
+    }
+  };
 
   useEffect(() => {
     if (document.discountValue && document.discountValue > 0) {
@@ -684,9 +713,10 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                     </h3>
                     <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-400">Client's Details</span>
-                        {selectedClient && onEditClient && (
+                        {selectedClient && (
                             <button 
-                                onClick={() => onEditClient(selectedClient)}
+                                type="button"
+                                onClick={() => openEditClientModal(selectedClient)}
                                 className="text-indigo-600 hover:text-indigo-800 text-xs font-bold flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded hover:bg-indigo-100 transition"
                                 title="Edit Client Details"
                             >
@@ -697,14 +727,24 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                     </div>
                 </div>
                 <div className="p-5 flex-1 bg-white">
-                    <div className="mb-4">
+                    <div className="mb-4 flex gap-2">
                       <select 
-                          className="border border-gray-200 rounded-md w-full p-2 bg-white text-sm focus:border-indigo-500 outline-none"
+                          className="border border-gray-200 rounded-md flex-1 p-2 bg-white text-sm focus:border-indigo-500 outline-none"
                           value={document.clientId}
                           onChange={handleClientChange}
                       >
+                          <option value="" disabled>Select a client...</option>
                           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
+                      <button 
+                          type="button"
+                          onClick={openNewClientModal}
+                          className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md text-sm font-bold transition flex items-center gap-1"
+                          title="Add New Client"
+                      >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                          New
+                      </button>
                     </div>
                     {/* Display Selected Client Details in Editor */}
                     {selectedClient && (
@@ -1479,6 +1519,88 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
               </tfoot>
           </table>
       </div>
+
+      {isClientModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 animate-in zoom-in-95 duration-200">
+             <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">
+                   {clientFormState.id.includes('client-') ? 'New Client' : 'Edit Client'}
+                </h3>
+                <button type="button" onClick={() => setIsClientModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+             </div>
+             
+             <form onSubmit={submitClientModal} className="grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+                {/* Name */}
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 border-none">Business / Client Name <span className="text-red-500">*</span></label>
+                  <input required type="text" value={clientFormState.name} onChange={e => setClientFormState({...clientFormState, name: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition" />
+                </div>
+                {/* GSTIN & PAN */}
+                <div className="col-span-2 md:col-span-1">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 border-none">GSTIN</label>
+                  <input type="text" value={clientFormState.gstin} onChange={e => {
+                    const val = e.target.value.toUpperCase();
+                    setClientFormState({...clientFormState, gstin: val, pan: val.length >= 12 ? val.substring(2, 12) : clientFormState.pan});
+                  }} className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition uppercase font-mono" maxLength={15} />
+                </div>
+                <div className="col-span-2 md:col-span-1">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 border-none">PAN</label>
+                  <input type="text" value={clientFormState.pan} onChange={e => setClientFormState({...clientFormState, pan: e.target.value.toUpperCase()})} className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition uppercase font-mono" maxLength={10} />
+                </div>
+                {/* Email & Phone */}
+                <div className="col-span-2 md:col-span-1">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 border-none">Email Address</label>
+                  <input type="email" value={clientFormState.email} onChange={e => setClientFormState({...clientFormState, email: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition" />
+                </div>
+                <div className="col-span-2 md:col-span-1">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 border-none">Phone</label>
+                  <input type="tel" value={clientFormState.phone} onChange={e => setClientFormState({...clientFormState, phone: e.target.value})} className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition" />
+                </div>
+                
+                <div className="col-span-2 border-t border-gray-100 pt-5 mt-2">
+                  <h3 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-4">Billing Address</h3>
+                </div>
+                
+                {/* Address Street */}
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 border-none">Street <span className="text-red-500">*</span></label>
+                  <input required type="text" value={clientFormState.address.street} onChange={e => setClientFormState({...clientFormState, address: {...clientFormState.address, street: e.target.value}})} className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition" />
+                </div>
+                {/* City & State */}
+                <div className="col-span-2 md:col-span-1">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 border-none">City <span className="text-red-500">*</span></label>
+                  <input required type="text" value={clientFormState.address.city} onChange={e => setClientFormState({...clientFormState, address: {...clientFormState.address, city: e.target.value}})} className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition" />
+                </div>
+                <div className="col-span-2 md:col-span-1">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 border-none">State <span className="text-red-500">*</span></label>
+                  <select 
+                      value={clientFormState.address.stateCode} 
+                      onChange={e => {
+                        const s = INDIAN_STATES.find(s => s.code === e.target.value);
+                        setClientFormState({...clientFormState, address: {...clientFormState.address, stateCode: e.target.value, state: s?.name || ''}})
+                      }} 
+                      className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                  >
+                     {INDIAN_STATES.map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
+                  </select>
+                </div>
+                {/* Pincode */}
+                <div className="col-span-2 md:col-span-1">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 border-none">Pincode <span className="text-red-500">*</span></label>
+                  <input required type="text" value={clientFormState.address.pincode} onChange={e => setClientFormState({...clientFormState, address: {...clientFormState.address, pincode: e.target.value}})} className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition" />
+                </div>
+                
+                <div className="col-span-2 pt-4 flex justify-end gap-3 mt-2">
+                   <button type="button" onClick={() => setIsClientModalOpen(false)} className="px-5 py-3 text-gray-700 font-bold bg-white border border-gray-200 hover:bg-gray-50 rounded-xl transition">Cancel</button>
+                   <button type="submit" className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition">Save Client</button>
+                </div>
+             </form>
+          </div>
+        </div>
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
