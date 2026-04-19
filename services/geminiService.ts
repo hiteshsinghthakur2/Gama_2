@@ -48,7 +48,15 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
             clientName: { type: Type.STRING, description: 'Client name' },
             clientEmail: { type: Type.STRING, description: 'Client email' },
             clientPhone: { type: Type.STRING, description: 'Client phone number' },
-            clientAddress: { type: Type.STRING, description: 'Client address (street, city, state, pincode)' },
+            clientAddress: {
+              type: Type.OBJECT,
+              properties: {
+                street: { type: Type.STRING },
+                city: { type: Type.STRING },
+                state: { type: Type.STRING },
+                pincode: { type: Type.STRING }
+              }
+            },
             clientGstin: { type: Type.STRING, description: 'Client GSTIN' },
             clientPan: { type: Type.STRING, description: 'Client PAN' },
             placeOfSupply: { type: Type.STRING, description: 'Place of supply (State Name)' },

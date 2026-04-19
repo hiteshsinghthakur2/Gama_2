@@ -33,6 +33,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   const [shareData, setShareData] = useState<{ doc: Invoice, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' } | null>(null);
 
   // Filtering State
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterMonth, setFilterMonth] = useState<string>('');
   const [filterYear, setFilterYear] = useState<string>('');
   const [filterStartDate, setFilterStartDate] = useState<string>('');
@@ -217,6 +218,17 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     // Status Filter
     if (filterStatus && inv.status !== filterStatus) return false;
 
+    // Search Filter
+    if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const client = getClient(inv.clientId);
+        const matchNumber = inv.number.toLowerCase().includes(query);
+        const matchClient = client && client.name.toLowerCase().includes(query);
+        const matchItems = inv.items.some(item => item.description.toLowerCase().includes(query));
+        
+        if (!matchNumber && !matchClient && !matchItems) return false;
+    }
+
     return true;
   }).sort((a, b) => {
     const dateA = new Date(a.date).getTime();
@@ -232,6 +244,19 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     <div className="space-y-4">
       {/* Filters */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-end">
+        <div className="w-full sm:w-auto flex-grow sm:flex-grow-0">
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Search</label>
+          <div className="relative">
+            <input 
+              type="text" 
+              placeholder="Invoice #, Client, Items..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full sm:w-64 p-2 pl-8 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+            <svg className="w-4 h-4 text-gray-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          </div>
+        </div>
         <div>
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Month</label>
           <select 
@@ -319,6 +344,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
           </span>
           <button 
             onClick={() => { 
+                setSearchQuery('');
                 setFilterMonth(''); 
                 setFilterYear(''); 
                 setFilterStartDate(''); 

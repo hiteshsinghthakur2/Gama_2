@@ -303,32 +303,72 @@ const App: React.FC = () => {
         
         if (parseResult && parseResult.success) {
           const parsedData = parseResult.data;
-          // Try to match client by name or GSTIN
-          let matchedClient = updatedClients.find(c => 
-            (parsedData.clientName && c.name.toLowerCase() === parsedData.clientName.toLowerCase()) ||
-            (parsedData.clientGstin && c.gstin === parsedData.clientGstin)
-          );
+          
+          const normalizeString = (s?: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-          let clientId = matchedClient?.id;
+          let clientId = '';
 
-          if (!clientId && parsedData.clientName) {
-            // Create a new client from the extracted data
-            const newClient: Client = {
-              id: `client-${Date.now()}-${i}`,
-              name: parsedData.clientName,
-              email: parsedData.clientEmail || '',
-              phone: parsedData.clientPhone || '',
-              address: parsedData.clientAddress || '',
-              gstin: parsedData.clientGstin || '',
-              pan: parsedData.clientPan || '',
-              state: parsedData.placeOfSupply || '',
-              stateCode: ''
+          if (parsedData.clientName) {
+            const pName = normalizeString(parsedData.clientName);
+            const pGstin = normalizeString(parsedData.clientGstin);
+            const pPhone = normalizeString(parsedData.clientPhone);
+            const pAddressObj = parsedData.clientAddress || {};
+            const pStreet = normalizeString(pAddressObj.street);
+            const pCity = normalizeString(pAddressObj.city);
+
+            let matchedClient = updatedClients.find(c => {
+               const cName = normalizeString(c.name);
+               const cGstin = normalizeString(c.gstin);
+               const cPhone = normalizeString(c.phone);
+               const cStreet = normalizeString(c.address?.street);
+               const cCity = normalizeString(c.address?.city);
+               
+               if (cName !== pName) return false;
+               if (pGstin && cGstin && pGstin !== cGstin) return false; // Different GSTIN means different business
+               if (pPhone && cPhone && pPhone !== cPhone) return false;   // Different Phone means different entry
+               
+               // If street or city is strongly provided and differs, create new (unless the existing is entirely blank)
+               if (pStreet && cStreet && pStreet !== cStreet) return false;
+               if (pCity && cCity && pCity !== cCity) return false;
+
+               return true;
+            });
+
+            if (matchedClient) {
+              clientId = matchedClient.id;
+            } else {
+              const newClient: Client = {
+                id: `client-${Date.now()}-${i}`,
+                name: parsedData.clientName,
+                email: parsedData.clientEmail || '',
+                phone: parsedData.clientPhone || '',
+                address: {
+                  street: typeof parsedData.clientAddress === 'string' ? parsedData.clientAddress : (parsedData.clientAddress?.street || ''),
+                  city: parsedData.clientAddress?.city || '',
+                  state: parsedData.clientAddress?.state || parsedData.placeOfSupply || '',
+                  stateCode: '',
+                  pincode: parsedData.clientAddress?.pincode || '',
+                  country: 'India'
+                },
+                gstin: parsedData.clientGstin || '',
+                pan: parsedData.clientPan || ''
+              };
+              updatedClients.push(newClient);
+              clientId = newClient.id;
+              clientsChanged = true;
+            }
+          }
+
+          if (!clientId) {
+            const unknownClient: Client = {
+              id: `client-unknown-${Date.now()}-${i}`,
+              name: 'Unknown Client',
+              email: '',
+              address: { street: '', city: '', state: '', stateCode: '', pincode: '', country: 'India' }
             };
-            updatedClients.push(newClient);
-            clientId = newClient.id;
+            updatedClients.push(unknownClient);
+            clientId = unknownClient.id;
             clientsChanged = true;
-          } else if (!clientId) {
-            clientId = updatedClients[0]?.id || '';
           }
 
           const parsedNumber = parsedData.number;
@@ -354,8 +394,14 @@ const App: React.FC = () => {
             terms: userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
           };
 
-          // Check for conflicts ONLY if a number was actually extracted
-          const existing = parsedNumber ? invoices.find(inv => inv.number.toLowerCase() === parsedNumber.toLowerCase()) : undefined;
+          // Only consider it a conflict if the invoice number AND the selected client match perfectly
+          let existing;
+          if (parsedNumber) {
+            existing = invoices.find(inv => 
+              inv.number.toLowerCase() === parsedNumber.toLowerCase() && 
+              inv.clientId === clientId
+            );
+          }
           
           if (existing) {
             conflicting.push({ parsed: newInvoice, existing });
