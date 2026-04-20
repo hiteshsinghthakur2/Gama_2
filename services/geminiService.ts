@@ -31,7 +31,7 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
     };
 
     const textPart = {
-      text: "Extract invoice details from this image/document. Include invoice number, date, due date, client name, client email, client phone, complete client address (street, city, state, postal code), client GSTIN, client PAN, place of supply, line items, any additional charges (like delivery or shipping), and the terms & conditions. Be very careful to extract the address strictly to the client. Return the data in JSON format.",
+      text: "Extract invoice details from this image/document. CRITICAL: YOU MUST EXTRACT THE COMPLETE CLIENT ADDRESS. Search all over the document, especially in sections like 'Billed To', 'Consignee', 'Ship To', 'Buyer', or near the customer's name. The client address is usually DIFFERENT from the seller (vendor/billed by) address. Capture the entire address block as one single complete string, including street, area, city, state, and postal code. Also extract: invoice number, issue date, due date, client name, client email, client phone, client GSTIN (search for 'GST', 'TIN', 'Tax ID'), client PAN, and the place of supply (India state name). Finally, extract all line items (description, HSN, qty, rate, taxRate), additional charges (delivery), and the terms and conditions. Return strictly formatted JSON.",
     };
 
     const response = await ai.models.generateContent({

@@ -312,7 +312,17 @@ const App: React.FC = () => {
             const pName = normalizeString(parsedData.clientName);
             const pGstin = normalizeString(parsedData.clientGstin);
             const pPhone = normalizeString(parsedData.clientPhone);
-            const pAddressString = typeof parsedData.clientAddress === 'string' ? normalizeString(parsedData.clientAddress) : '';
+            
+            // Aggressive Flattening: Ensure clientAddress is a string even if AI returns an object
+            let pAddressString = '';
+            if (typeof parsedData.clientAddress === 'string') {
+              pAddressString = parsedData.clientAddress;
+            } else if (parsedData.clientAddress && typeof parsedData.clientAddress === 'object') {
+              // Extract values from object if AI cheated and ignored the string schema
+              pAddressString = Object.values(parsedData.clientAddress).filter(v => typeof v === 'string').join(', ');
+            }
+            
+            const pNormalizedAddress = normalizeString(pAddressString);
 
             let matchedClient = updatedClients.find(c => {
                const cName = normalizeString(c.name);
@@ -321,11 +331,10 @@ const App: React.FC = () => {
                const cStreet = normalizeString(c.address?.street);
                
                if (cName !== pName) return false;
-               if (pGstin && cGstin && pGstin !== cGstin) return false; // Different GSTIN means different business
-               if (pPhone && cPhone && pPhone !== cPhone) return false;   // Different Phone means different entry
+               if (pGstin && cGstin && pGstin !== cGstin) return false;
+               if (pPhone && cPhone && pPhone !== cPhone) return false;
                
-               // If street is strongly provided and differs, create new (unless the existing is entirely blank)
-               if (pAddressString && cStreet && !cStreet.includes(pAddressString.substring(0, 10)) && !pAddressString.includes(cStreet.substring(0, 10))) return false;
+               if (pNormalizedAddress && cStreet && !cStreet.includes(pNormalizedAddress.substring(0, 10)) && !pNormalizedAddress.includes(cStreet.substring(0, 10))) return false;
 
                return true;
             });
@@ -339,7 +348,7 @@ const App: React.FC = () => {
                 email: parsedData.clientEmail || '',
                 phone: parsedData.clientPhone || '',
                 address: {
-                  street: typeof parsedData.clientAddress === 'string' ? parsedData.clientAddress : '',
+                  street: pAddressString,
                   city: '',
                   state: parsedData.placeOfSupply || '',
                   stateCode: '',

@@ -755,7 +755,15 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                         </div>
                         <div className="grid grid-cols-[100px_1fr]">
                            <span className="font-bold text-gray-700">Address</span>
-                           <span>{selectedClient.address.street}, {selectedClient.address.city}, {selectedClient.address.state} - {selectedClient.address.pincode}</span>
+                           <span>
+                             {[
+                               selectedClient.address.street,
+                               selectedClient.address.city,
+                               selectedClient.address.state
+                             ].filter(Boolean).join(', ')}
+                             {selectedClient.address.pincode ? ` - ${selectedClient.address.pincode}` : ''}
+                             {(!selectedClient.address.street && !selectedClient.address.city && !selectedClient.address.state && !selectedClient.address.pincode) && '-'}
+                           </span>
                         </div>
                         <div className="grid grid-cols-[100px_1fr]">
                            <span className="font-bold text-gray-700">GSTIN</span>
