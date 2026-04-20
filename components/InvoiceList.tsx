@@ -160,7 +160,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     }
   }, [shareData, userProfile]);
 
-  // Close menu when clicking outside or scrolling
+  // Close menu when clicking outside
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
       if (activeMenuId && !(e.target as Element).closest('.action-menu-container') && !(e.target as Element).closest('.action-menu-trigger')) {
@@ -170,9 +170,23 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
         setActiveStatusMenuId(null);
       }
     };
+
     const handleScroll = () => {
-        if(activeMenuId) setActiveMenuId(null);
-        if(activeStatusMenuId) setActiveStatusMenuId(null);
+        if (activeMenuId) {
+            const button = document.querySelector(`[data-menu-id="${activeMenuId}"]`);
+            if (button) {
+                const rect = button.getBoundingClientRect();
+                setMenuPosition({
+                    top: rect.bottom + 5,
+                    right: window.innerWidth - rect.right
+                });
+            } else {
+                setActiveMenuId(null); // Button scrolled completely out of DOM?
+            }
+        }
+        if (activeStatusMenuId) {
+            setActiveStatusMenuId(null); // Status menu runs relative so it's fine to just close it or let it scroll, but standard practice is closing unless we want to reposition. Let's just leave status as is (it's locally positioned so it stays attached).
+        }
     };
 
     window.addEventListener('click', handleGlobalClick);
@@ -197,6 +211,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
       });
       setActiveMenuId(id);
   };
+
 
   const activeInvoice = invoices.find(i => i.id === activeMenuId);
 
@@ -418,6 +433,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                       <button 
                           className={`p-2.5 rounded-xl transition action-menu-trigger ${activeMenuId === inv.id ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:bg-gray-100'}`}
                           onClick={(e) => toggleMenu(e, inv.id)}
+                          data-menu-id={inv.id}
                       >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
                       </button>
