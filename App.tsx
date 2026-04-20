@@ -415,11 +415,19 @@ const App: React.FC = () => {
           }
         } else {
           console.warn(`Could not extract details from file: ${file.name}`);
-          alert(`Failed to extract from ${file.name}: ${parseResult?.error || 'Unknown error'}`);
+          // Instead of breaking the loop or alerting, we simply log extraction failure to a UI-friendly list later
+          conflicting.push({ 
+            parsed: { id: `err-${Date.now()}`, number: `Error: ${file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
+             // We use 'existing' as a hack to show the error message in the conflict modal without writing a whole new modal
+            existing: { id: `msg-${Date.now()}`, number: `Extraction Failed: ${parseResult?.error || 'Unknown error'}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
+          });
         }
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
-        alert(`Failed to process ${file.name}: ${error}`);
+        conflicting.push({ 
+            parsed: { id: `err-${Date.now()}`, number: `Error: ${file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
+            existing: { id: `msg-${Date.now()}`, number: `Processing Error: ${(error as any)?.message || error}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
+        });
       }
     }
 
@@ -478,9 +486,11 @@ const App: React.FC = () => {
     let invoicesToSave = [...uploadConflicts.strictlyNew];
 
     if (action === 'update') {
-      const parsedToUpdate = uploadConflicts.conflicting.map(c => ({
-        ...c.parsed,
-        id: c.existing.id // Retain existing system ID so it replaces instead of prepends
+      const parsedToUpdate = uploadConflicts.conflicting
+        .filter(c => !c.parsed.id.startsWith('err-')) // Don't save extraction errors
+        .map(c => ({
+          ...c.parsed,
+          id: c.existing.id // Retain existing system ID so it replaces instead of prepends
       }));
       invoicesToSave = [...invoicesToSave, ...parsedToUpdate];
     }
@@ -824,30 +834,39 @@ const App: React.FC = () => {
         {uploadConflicts && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 animate-in zoom-in-95 duration-200">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Duplicate Invoices Detected</h3>
-              <p className="text-sm text-gray-500 mb-6 font-medium">The following invoices you uploaded already exist in your system. Do you want to update them with this new data?</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Upload Report</h3>
+              <p className="text-sm text-gray-500 mb-6 font-medium">Please review these issues encountered during your upload.</p>
               
               <div className="max-h-60 overflow-y-auto mb-6 custom-scrollbar border rounded-xl shadow-sm">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-gray-50 text-gray-500 font-bold sticky top-0 border-b shadow-sm">
                     <tr>
-                      <th className="p-3">Invoice #</th>
+                      <th className="p-3">File / Invoice #</th>
                       <th className="p-3">Client</th>
-                      <th className="p-3">Current Status</th>
+                      <th className="p-3">Issue Detected</th>
                       <th className="p-3 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {uploadConflicts.conflicting.map(c => (
-                      <tr key={c.parsed.number} className="hover:bg-gray-50">
-                        <td className="p-3 font-semibold text-gray-900">{c.parsed.number}</td>
-                        <td className="p-3 text-gray-600">{clients.find(client => client.id === c.parsed.clientId)?.name || c.parsed.clientId || 'Unknown'}</td>
+                    {uploadConflicts.conflicting.map(c => {
+                      const isError = c.parsed.id.startsWith('err-');
+                      return (
+                      <tr key={c.parsed.id} className="hover:bg-gray-50">
+                        <td className="p-3 font-semibold text-gray-900">{isError ? c.parsed.number || 'Unknown File' : c.parsed.number}</td>
+                        <td className="p-3 text-gray-600">{isError ? '-' : clients.find(client => client.id === c.parsed.clientId)?.name || c.parsed.clientId || 'Unknown'}</td>
                         <td className="p-3">
-                          <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold">{c.existing.status}</span>
+                          {isError ? (
+                             <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold line-clamp-2 max-w-xs" title={c.existing.number}>{c.existing.number}</span>
+                          ) : (
+                             <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-bold">Duplicate Found</span>
+                          )}
                         </td>
-                        <td className="p-3 text-right text-orange-600 font-semibold text-xs uppercase tracking-wider">Will Overwrite</td>
+                        <td className={`p-3 text-right font-semibold text-xs uppercase tracking-wider ${isError ? 'text-red-500' : 'text-orange-600'}`}>
+                           {isError ? 'SKIPPED' : 'WILL OVERWRITE'}
+                        </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
