@@ -171,30 +171,10 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
       }
     };
 
-    const handleScroll = () => {
-        if (activeMenuId) {
-            const button = document.querySelector(`[data-menu-id="${activeMenuId}"]`);
-            if (button) {
-                const rect = button.getBoundingClientRect();
-                setMenuPosition({
-                    top: rect.bottom + 5,
-                    right: window.innerWidth - rect.right
-                });
-            } else {
-                setActiveMenuId(null); // Button scrolled completely out of DOM?
-            }
-        }
-        if (activeStatusMenuId) {
-            setActiveStatusMenuId(null); // Status menu runs relative so it's fine to just close it or let it scroll, but standard practice is closing unless we want to reposition. Let's just leave status as is (it's locally positioned so it stays attached).
-        }
-    };
-
     window.addEventListener('click', handleGlobalClick);
-    window.addEventListener('scroll', handleScroll, true);
     
     return () => {
         window.removeEventListener('click', handleGlobalClick);
-        window.removeEventListener('scroll', handleScroll, true);
     };
   }, [activeMenuId, activeStatusMenuId]);
 
@@ -204,11 +184,6 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
           setActiveMenuId(null);
           return;
       }
-      const rect = e.currentTarget.getBoundingClientRect();
-      setMenuPosition({
-          top: rect.bottom + 5,
-          right: window.innerWidth - rect.right
-      });
       setActiveMenuId(id);
   };
 
@@ -421,7 +396,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex justify-end gap-1 relative">
                       <button 
                         onClick={() => onEdit(inv)}
                         className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition"
@@ -437,6 +412,67 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                       >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
                       </button>
+
+                      {/* Inline floating menu */}
+                      {activeMenuId === inv.id && (
+                          <div 
+                              className="action-menu-container absolute right-0 top-[calc(100%+4px)] bg-white border border-gray-100 shadow-2xl rounded-2xl z-50 py-2 w-56 flex flex-col text-left overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+                          >
+                              <button 
+                                onClick={() => { onDuplicate(inv); setActiveMenuId(null); }} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                                  Duplicate
+                              </button>
+                              <button 
+                                onClick={() => { onEdit(inv); setActiveMenuId(null); }} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                  View / Print
+                              </button>
+                              <button 
+                                onClick={() => handleShare(inv, 'download')} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                  Download PDF
+                              </button>
+                              {onConvertToDeliveryChallan && (
+                                <button 
+                                  onClick={() => { onConvertToDeliveryChallan(inv); setActiveMenuId(null); }} 
+                                  className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    Create Delivery Challan
+                                </button>
+                              )}
+                              <div className="h-px bg-gray-100 my-1 mx-2"></div>
+                              <button 
+                                onClick={() => handleShare(inv, 'whatsapp')} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-emerald-600 hover:bg-emerald-50 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.569 2.1c-.08.293.18.559.479.498l2.126-.432c.945.483 2.016.75 3.125.75 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.766-5.768-5.766zM15.42 14.512c-.157.443-.79.802-1.22.888-.344.068-.788.125-1.272-.034-1.127-.372-2.316-1.577-3.23-2.616-.27-.306-.5-.59-.684-.848-.382-.544-.65-1.157-.315-1.583.104-.131.296-.285.442-.387.112-.078.225-.131.309-.131.085 0 .17.001.24.004.073.003.15.006.216.143.085.18.29.702.315.754.025.05.04.109.008.173-.031.065-.07.106-.144.186l-.216.242c-.068.077-.14.16-.06.297.08.137.354.584.761.947.525.467.967.61 1.104.678.137.069.217.057.297-.034.08-.09.344-.403.435-.54.092-.137.183-.114.306-.068.123.046.779.367.914.435.134.068.223.102.257.16.034.058.034.336-.123.779zM12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8-8 8z" /></svg>
+                                  Share WhatsApp
+                              </button>
+                              <button 
+                                onClick={() => handleShare(inv, 'email')} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                  Share Email
+                              </button>
+                              <div className="h-px bg-gray-100 my-1 mx-2"></div>
+                              <button 
+                                onClick={() => { onDelete(inv.id); setActiveMenuId(null); }} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                  Delete Permanently
+                              </button>
+                          </div>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -458,68 +494,6 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
         </table>
       </div>
       </div>
-
-      {/* Floating Menu */}
-      {activeMenuId && activeInvoice && menuPosition && (
-          <div 
-              className="action-menu-container fixed bg-white border border-gray-100 shadow-2xl rounded-2xl z-[9999] py-2 w-56 flex flex-col text-left overflow-hidden animate-in fade-in zoom-in-95 duration-100"
-              style={{ top: `${menuPosition.top}px`, right: `${menuPosition.right}px` }}
-          >
-              <button 
-                onClick={() => { onDuplicate(activeInvoice); setActiveMenuId(null); }} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
-                  Duplicate
-              </button>
-              <button 
-                onClick={() => { onEdit(activeInvoice); setActiveMenuId(null); }} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                  View / Print
-              </button>
-              <button 
-                onClick={() => handleShare(activeInvoice, 'download')} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                  Download PDF
-              </button>
-              {onConvertToDeliveryChallan && (
-                <button 
-                  onClick={() => { onConvertToDeliveryChallan(activeInvoice); setActiveMenuId(null); }} 
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    Create Delivery Challan
-                </button>
-              )}
-              <div className="h-px bg-gray-100 my-1 mx-2"></div>
-              <button 
-                onClick={() => handleShare(activeInvoice, 'whatsapp')} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-emerald-600 hover:bg-emerald-50 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.569 2.1c-.08.293.18.559.479.498l2.126-.432c.945.483 2.016.75 3.125.75 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.766-5.768-5.766zM15.42 14.512c-.157.443-.79.802-1.22.888-.344.068-.788.125-1.272-.034-1.127-.372-2.316-1.577-3.23-2.616-.27-.306-.5-.59-.684-.848-.382-.544-.65-1.157-.315-1.583.104-.131.296-.285.442-.387.112-.078.225-.131.309-.131.085 0 .17.001.24.004.073.003.15.006.216.143.085.18.29.702.315.754.025.05.04.109.008.173-.031.065-.07.106-.144.186l-.216.242c-.068.077-.14.16-.06.297.08.137.354.584.761.947.525.467.967.61 1.104.678.137.069.217.057.297-.034.08-.09.344-.403.435-.54.092-.137.183-.114.306-.068.123.046.779.367.914.435.134.068.223.102.257.16.034.058.034.336-.123.779zM12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8-8 8z" /></svg>
-                  Share WhatsApp
-              </button>
-              <button 
-                onClick={() => handleShare(activeInvoice, 'email')} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                  Share Email
-              </button>
-              <div className="h-px bg-gray-100 my-1 mx-2"></div>
-              <button 
-                onClick={() => { onDelete(activeInvoice.id); setActiveMenuId(null); }} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  Delete Permanently
-              </button>
-          </div>
-      )}
 
       {/* Hidden container for PDF generation */}
       {shareData && (

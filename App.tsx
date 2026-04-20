@@ -312,24 +312,20 @@ const App: React.FC = () => {
             const pName = normalizeString(parsedData.clientName);
             const pGstin = normalizeString(parsedData.clientGstin);
             const pPhone = normalizeString(parsedData.clientPhone);
-            const pAddressObj = parsedData.clientAddress || {};
-            const pStreet = normalizeString(pAddressObj.street);
-            const pCity = normalizeString(pAddressObj.city);
+            const pAddressString = typeof parsedData.clientAddress === 'string' ? normalizeString(parsedData.clientAddress) : '';
 
             let matchedClient = updatedClients.find(c => {
                const cName = normalizeString(c.name);
                const cGstin = normalizeString(c.gstin);
                const cPhone = normalizeString(c.phone);
                const cStreet = normalizeString(c.address?.street);
-               const cCity = normalizeString(c.address?.city);
                
                if (cName !== pName) return false;
                if (pGstin && cGstin && pGstin !== cGstin) return false; // Different GSTIN means different business
                if (pPhone && cPhone && pPhone !== cPhone) return false;   // Different Phone means different entry
                
-               // If street or city is strongly provided and differs, create new (unless the existing is entirely blank)
-               if (pStreet && cStreet && pStreet !== cStreet) return false;
-               if (pCity && cCity && pCity !== cCity) return false;
+               // If street is strongly provided and differs, create new (unless the existing is entirely blank)
+               if (pAddressString && cStreet && !cStreet.includes(pAddressString.substring(0, 10)) && !pAddressString.includes(cStreet.substring(0, 10))) return false;
 
                return true;
             });
@@ -343,11 +339,11 @@ const App: React.FC = () => {
                 email: parsedData.clientEmail || '',
                 phone: parsedData.clientPhone || '',
                 address: {
-                  street: typeof parsedData.clientAddress === 'string' ? parsedData.clientAddress : (parsedData.clientAddress?.street || ''),
-                  city: parsedData.clientAddress?.city || '',
-                  state: parsedData.clientAddress?.state || parsedData.placeOfSupply || '',
+                  street: typeof parsedData.clientAddress === 'string' ? parsedData.clientAddress : '',
+                  city: '',
+                  state: parsedData.placeOfSupply || '',
                   stateCode: '',
-                  pincode: parsedData.clientAddress?.pincode || '',
+                  pincode: '',
                   country: 'India'
                 },
                 gstin: parsedData.clientGstin || '',
