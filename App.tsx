@@ -389,9 +389,14 @@ const App: React.FC = () => {
               rate: item.rate || 0,
               taxRate: item.taxRate || 18
             })) : [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
+            additionalCharges: parsedData.additionalCharges && parsedData.additionalCharges.length > 0 ? parsedData.additionalCharges.map((charge: any, index: number) => ({
+              id: `charge-${Date.now()}-${i}-${index}`,
+              label: charge.label || 'Additional Charge',
+              amount: charge.amount || 0
+            })) : undefined,
             placeOfSupply: parsedData.placeOfSupply || `${userProfile.address.state} (${userProfile.address.stateCode})`,
             bankDetails: userProfile.bankAccounts[0],
-            terms: userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
+            terms: parsedData.termsAndConditions || userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
           };
 
           // Only consider it a conflict if the invoice number AND the selected client match perfectly

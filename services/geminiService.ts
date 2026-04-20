@@ -31,7 +31,7 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
     };
 
     const textPart = {
-      text: "Extract invoice details from this image/document. Include invoice number, date, due date, client name, client email, client phone, client address, client GSTIN, client PAN, place of supply, and line items (description, hsn, qty, rate, taxRate). Return the data in JSON format.",
+      text: "Extract invoice details from this image/document. Include invoice number, date, due date, client name, client email, client phone, complete client address (street, city, state, postal code), client GSTIN, client PAN, place of supply, line items, any additional charges (like delivery or shipping), and the terms & conditions. Be very careful to extract the address strictly to the client. Return the data in JSON format.",
     };
 
     const response = await ai.models.generateContent({
@@ -51,10 +51,10 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
             clientAddress: {
               type: Type.OBJECT,
               properties: {
-                street: { type: Type.STRING },
-                city: { type: Type.STRING },
-                state: { type: Type.STRING },
-                pincode: { type: Type.STRING }
+                street: { type: Type.STRING, description: 'Street address' },
+                city: { type: Type.STRING, description: 'City' },
+                state: { type: Type.STRING, description: 'State' },
+                pincode: { type: Type.STRING, description: 'Postal/PIN code' }
               }
             },
             clientGstin: { type: Type.STRING, description: 'Client GSTIN' },
@@ -73,7 +73,19 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
                 },
                 required: ['description'],
               }
-            }
+            },
+            additionalCharges: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  label: { type: Type.STRING, description: 'Description of charge (e.g., Delivery Charge, Shipping)' },
+                  amount: { type: Type.NUMBER, description: 'Amount of the charge' }
+                },
+                required: ['label', 'amount']
+              }
+            },
+            termsAndConditions: { type: Type.STRING, description: 'Terms and conditions mentioned on the invoice specifically' }
           }
         }
       }
@@ -86,16 +98,18 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
     
     return { success: true, data: JSON.parse(text) };
   } catch (error: any) {
-    const errorMsg = error?.message || '';
+    const errorMsg = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
     
-    // Automatically retry if it's a rate limit error
-    if ((errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota')) && retries > 0) {
-      console.warn(`Rate limit hit, retrying parsing... (${retries} retries left). Message: ${errorMsg}`);
+    // Automatically retry if it's a rate limit or service unavailable error (like 503)
+    if ((errorMsg.includes('429') || errorMsg.includes('503') || errorMsg.includes('UNAVAILABLE') || errorMsg.includes('high demand') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota')) && retries > 0) {
+      console.warn(`Rate limit or High Demand hit, retrying parsing... (${retries} retries left). Message: ${errorMsg}`);
       
       let waitTime = 15000; // Default 15s wait
       const match = errorMsg.match(/retry in (\d+(\.\d+)?)s/i);
       if (match && match[1]) {
         waitTime = Math.ceil(parseFloat(match[1])) * 1000 + 1000; // Extracted time + 1s padding
+      } else if (errorMsg.includes('503') || errorMsg.includes('UNAVAILABLE')) {
+        waitTime = 10000; // 10 seconds wait on 503
       }
       
       // Safety cap wait time to 60 seconds to prevent massive lockups in UI
