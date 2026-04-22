@@ -313,28 +313,24 @@ const App: React.FC = () => {
             const pGstin = normalizeString(parsedData.clientGstin);
             const pPhone = normalizeString(parsedData.clientPhone);
             
-            // Aggressive Flattening: Ensure clientAddress is a string even if AI returns an object
-            let pAddressString = '';
-            if (typeof parsedData.clientAddress === 'string') {
-              pAddressString = parsedData.clientAddress;
-            } else if (parsedData.clientAddress && typeof parsedData.clientAddress === 'object') {
-              // Extract values from object if AI cheated and ignored the string schema
-              pAddressString = Object.values(parsedData.clientAddress).filter(v => typeof v === 'string').join(', ');
-            }
-            
-            const pNormalizedAddress = normalizeString(pAddressString);
+            const addr = parsedData.clientAddress || {};
+            const pStreet = normalizeString(addr.street);
+            const pCity = normalizeString(addr.city);
 
             let matchedClient = updatedClients.find(c => {
                const cName = normalizeString(c.name);
                const cGstin = normalizeString(c.gstin);
                const cPhone = normalizeString(c.phone);
                const cStreet = normalizeString(c.address?.street);
+               const cCity = normalizeString(c.address?.city);
                
                if (cName !== pName) return false;
                if (pGstin && cGstin && pGstin !== cGstin) return false;
                if (pPhone && cPhone && pPhone !== cPhone) return false;
                
-               if (pNormalizedAddress && cStreet && !cStreet.includes(pNormalizedAddress.substring(0, 10)) && !pNormalizedAddress.includes(cStreet.substring(0, 10))) return false;
+               // Strong mismatch check
+               if (pStreet && cStreet && !cStreet.includes(pStreet.substring(0, 10)) && !pStreet.includes(cStreet.substring(0, 10))) return false;
+               if (pCity && cCity && pCity !== cCity) return false;
 
                return true;
             });
@@ -342,22 +338,32 @@ const App: React.FC = () => {
             if (matchedClient) {
               clientId = matchedClient.id;
             } else {
+              let finalStreet = typeof addr === 'string' ? addr : addr.street || '';
+              
               const newClient: Client = {
                 id: `client-${Date.now()}-${i}`,
                 name: parsedData.clientName,
                 email: parsedData.clientEmail || '',
                 phone: parsedData.clientPhone || '',
                 address: {
-                  street: pAddressString,
-                  city: '',
-                  state: parsedData.placeOfSupply || '',
+                  street: finalStreet,
+                  city: addr.city || '',
+                  state: addr.state || parsedData.placeOfSupply || '',
                   stateCode: '',
-                  pincode: '',
-                  country: 'India'
+                  pincode: addr.pincode || '',
+                  country: addr.country || 'India'
                 },
                 gstin: parsedData.clientGstin || '',
                 pan: parsedData.clientPan || ''
               };
+              
+              // Apply simple logic if AI explicitly marked Registered true but Gstin was somehow missed
+              if (parsedData.clientRegistered && !newClient.gstin) {
+                 newClient.customFields = [{ label: 'Status', value: 'Registered (GSTIN Missing)' }];
+              } else if (!parsedData.clientRegistered && !newClient.gstin) {
+                 newClient.customFields = [{ label: 'Status', value: 'Non-Registered' }];
+              }
+
               updatedClients.push(newClient);
               clientId = newClient.id;
               clientsChanged = true;

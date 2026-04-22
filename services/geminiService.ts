@@ -31,11 +31,11 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
     };
 
     const textPart = {
-      text: "Extract invoice details from this image/document. CRITICAL: YOU MUST EXTRACT THE COMPLETE CLIENT ADDRESS. Search all over the document, especially in sections like 'Billed To', 'Consignee', 'Ship To', 'Buyer', or near the customer's name. The client address is usually DIFFERENT from the seller (vendor/billed by) address. Capture the entire address block as one single complete string, including street, area, city, state, and postal code. Also extract: invoice number, issue date, due date, client name, client email, client phone, client GSTIN (search for 'GST', 'TIN', 'Tax ID'), client PAN, and the place of supply (India state name). Finally, extract all line items (description, HSN, qty, rate, taxRate), additional charges (delivery), and the terms and conditions. Return strictly formatted JSON.",
+      text: "Extract invoice details from this image/document. CRITICAL: YOU MUST EXTRACT THE COMPLETE CLIENT DETAILS. Search all over the document, especially 'Billed To', 'Consignee', or 'Buyer'. Capture the Client Name, Email, Phone, and the FULL Address (separated into street, city, state, pincode, country). Also extract invoice number, issue date, due date, client GSTIN, client PAN, whether the client is registered for GST (true/false based on GSTIN presence), place of supply, all line items, additional charges, and terms. Return strictly formatted JSON.",
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       contents: { parts: [imagePart, textPart] },
       config: {
         responseMimeType: 'application/json',
@@ -48,7 +48,18 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
             clientName: { type: Type.STRING, description: 'Client name' },
             clientEmail: { type: Type.STRING, description: 'Client email' },
             clientPhone: { type: Type.STRING, description: 'Client phone number' },
-            clientAddress: { type: Type.STRING, description: 'Full Client Address (Street, City, State, Pincode/Zip) as a single formatted string' },
+            clientRegistered: { type: Type.BOOLEAN, description: 'True if client has GSTIN/is registered, false otherwise' },
+            clientAddress: {
+              type: Type.OBJECT,
+              description: 'Client Address Details',
+              properties: {
+                 street: { type: Type.STRING, description: 'Street address and area' },
+                 city: { type: Type.STRING, description: 'City name' },
+                 state: { type: Type.STRING, description: 'State name' },
+                 pincode: { type: Type.STRING, description: 'Postal or Pin code' },
+                 country: { type: Type.STRING, description: 'Country (e.g. India)' }
+              }
+            },
             clientGstin: { type: Type.STRING, description: 'Client GSTIN' },
             clientPan: { type: Type.STRING, description: 'Client PAN' },
             placeOfSupply: { type: Type.STRING, description: 'Place of supply (State Name)' },
@@ -185,7 +196,7 @@ export const parseBankStatementFromImage = async (base64Data: string, mimeType: 
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       contents: { parts: [imagePart, textPart] },
       config: {
         responseMimeType: 'application/json',
