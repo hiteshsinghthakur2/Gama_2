@@ -14,7 +14,7 @@ const getApiKey = () => {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const parseInvoiceFromImage = async (base64Data: string, mimeType: string, retries = 3): Promise<{ success: boolean; data?: any; error?: string }> => {
+export const parseInvoiceFromImage = async (base64Data: string, mimeType: string, retries = 3, targetModel = 'gemini-2.0-flash'): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
     const apiKey = getApiKey();
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
@@ -35,7 +35,7 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: targetModel,
       contents: { parts: [imagePart, textPart] },
       config: {
         responseMimeType: 'application/json',
@@ -103,14 +103,20 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
   } catch (error: any) {
     const errorMsg = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
     
+    // If we hit hard quota on 2.0-flash, immediately fallback to 1.5-flash which has higher free tiers
+    if ((errorMsg.includes('quota') || errorMsg.includes('exceeded')) && targetModel !== 'gemini-1.5-flash') {
+        console.warn(`Model ${targetModel} hit quota limit, falling back to gemini-1.5-flash...`);
+        return parseInvoiceFromImage(base64Data, mimeType, retries, 'gemini-1.5-flash');
+    }
+
     // Automatically retry if it's a rate limit or service unavailable error (like 503)
-    if ((errorMsg.includes('429') || errorMsg.includes('503') || errorMsg.includes('UNAVAILABLE') || errorMsg.includes('high demand') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota')) && retries > 0) {
-      console.warn(`Rate limit or High Demand hit, retrying parsing... (${retries} retries left). Message: ${errorMsg}`);
+    if ((errorMsg.includes('429') || errorMsg.includes('503') || errorMsg.includes('UNAVAILABLE') || errorMsg.includes('high demand') || errorMsg.includes('RESOURCE_EXHAUSTED')) && retries > 0) {
+      console.warn(`Rate limit or High Demand hit, retrying parsing... (${retries} retries left, model: ${targetModel}). Message: ${errorMsg}`);
       
-      let waitTime = 15000; // Default 15s wait
+      let waitTime = 20000; // Default 20s wait to help clear RPM limits
       const match = errorMsg.match(/retry in (\d+(\.\d+)?)s/i);
       if (match && match[1]) {
-        waitTime = Math.ceil(parseFloat(match[1])) * 1000 + 1000; // Extracted time + 1s padding
+        waitTime = Math.ceil(parseFloat(match[1])) * 1000 + 2000; // Extracted time + 2s padding
       } else if (errorMsg.includes('503') || errorMsg.includes('UNAVAILABLE')) {
         waitTime = 10000; // 10 seconds wait on 503
       }
@@ -119,10 +125,10 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
       waitTime = Math.min(waitTime, 60000);
       
       await delay(waitTime);
-      return parseInvoiceFromImage(base64Data, mimeType, retries - 1);
+      return parseInvoiceFromImage(base64Data, mimeType, retries - 1, targetModel);
     }
 
-    console.error('Gemini AI Service Error (parseInvoiceFromImage):', errorMsg || error);
+    console.error(`Gemini AI Service Error (${targetModel}):`, errorMsg || error);
     return { success: false, error: errorMsg || 'Unknown processing error' };
   }
 };
@@ -175,7 +181,7 @@ export const fetchGSTDetailsFromGemini = async (gstin: string) => {
   }
 };
 
-export const parseBankStatementFromImage = async (base64Data: string, mimeType: string, retries = 3): Promise<{ success: boolean; data?: any; error?: string }> => {
+export const parseBankStatementFromImage = async (base64Data: string, mimeType: string, retries = 3, targetModel = 'gemini-2.0-flash'): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
     const apiKey = getApiKey();
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
@@ -196,7 +202,7 @@ export const parseBankStatementFromImage = async (base64Data: string, mimeType: 
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: targetModel,
       contents: { parts: [imagePart, textPart] },
       config: {
         responseMimeType: 'application/json',
@@ -227,18 +233,25 @@ export const parseBankStatementFromImage = async (base64Data: string, mimeType: 
     return { success: true, data: JSON.parse(text) };
   } catch (error: any) {
     const errorMsg = error?.message || '';
-    if ((errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota')) && retries > 0) {
-      console.warn(`Rate limit hit, retrying bank statement parsing... (${retries} retries left)`);
-      let waitTime = 15000;
+    
+    // Fallback to 1.5-flash on quota exceeded
+    if ((errorMsg.includes('quota') || errorMsg.includes('exceeded')) && targetModel !== 'gemini-1.5-flash') {
+        console.warn(`Model ${targetModel} hit quota limit, falling back to gemini-1.5-flash...`);
+        return parseBankStatementFromImage(base64Data, mimeType, retries, 'gemini-1.5-flash');
+    }
+
+    if ((errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED')) && retries > 0) {
+      console.warn(`Rate limit hit, retrying bank statement parsing... (${retries} retries left, model: ${targetModel})`);
+      let waitTime = 20000;
       const match = errorMsg.match(/retry in (\d+(\.\d+)?)s/i);
       if (match && match[1]) {
-        waitTime = Math.ceil(parseFloat(match[1])) * 1000 + 1000;
+        waitTime = Math.ceil(parseFloat(match[1])) * 1000 + 2000;
       }
       waitTime = Math.min(waitTime, 60000);
       await delay(waitTime);
-      return parseBankStatementFromImage(base64Data, mimeType, retries - 1);
+      return parseBankStatementFromImage(base64Data, mimeType, retries - 1, targetModel);
     }
-    console.error('Gemini AI Service Error (parseBankStatementFromImage):', errorMsg || error);
+    console.error(`Gemini AI Service Error (${targetModel}):`, errorMsg || error);
     return { success: false, error: errorMsg || 'Unknown processing error' };
   }
 };
