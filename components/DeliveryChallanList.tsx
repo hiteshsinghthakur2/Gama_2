@@ -30,7 +30,10 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const [shareData, setShareData] = useState<{ doc: DeliveryChallan, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' } | null>(null);
 
-  const getClient = (id: string) => clients.find(c => c.id === id);
+  const getClient = (id: string, doc?: DeliveryChallan) => {
+    if (doc && doc.clientDetails) return doc.clientDetails;
+    return clients.find(c => c.id === id);
+  };
 
   const getStatusStyle = (status: DeliveryChallanStatus) => {
     switch (status) {
@@ -43,7 +46,7 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
   };
 
   const handleShare = (doc: DeliveryChallan, target: 'whatsapp' | 'email' | 'download') => {
-    setShareData({ doc, client: getClient(doc.clientId), target });
+    setShareData({ doc, client: getClient(doc.clientId, doc), target });
     setActiveMenuId(null);
   };
 
@@ -222,7 +225,7 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
                 return (
                   <tr key={challan.id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4 font-bold text-gray-900">{challan.number}</td>
-                    <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(challan.clientId)?.name || 'Unknown Client'}</td>
+                    <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(challan.clientId, challan)?.name || 'Unknown Client'}</td>
                     <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">{new Date(challan.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</td>
                     <td className="px-6 py-4 font-medium text-gray-700">{challan.items.length} Items</td>
                     <td className="px-6 py-4">

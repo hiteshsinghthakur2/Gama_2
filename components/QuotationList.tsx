@@ -33,7 +33,10 @@ const QuotationList: React.FC<QuotationListProps> = ({
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const [shareData, setShareData] = useState<{ doc: Quotation, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' } | null>(null);
 
-  const getClient = (id: string) => clients.find(c => c.id === id);
+  const getClient = (id: string, qt?: Quotation) => {
+    if (qt && qt.clientDetails) return qt.clientDetails;
+    return clients.find(c => c.id === id);
+  };
 
   const getStatusStyle = (status: QuotationStatus) => {
     switch (status) {
@@ -46,7 +49,7 @@ const QuotationList: React.FC<QuotationListProps> = ({
   };
 
   const handleShare = (qt: Quotation, target: 'whatsapp' | 'email' | 'download') => {
-    setShareData({ doc: qt, client: getClient(qt.clientId), target });
+    setShareData({ doc: qt, client: getClient(qt.clientId, qt), target });
     setActiveMenuId(null);
   };
 
@@ -227,7 +230,7 @@ const QuotationList: React.FC<QuotationListProps> = ({
                 return (
                   <tr key={qt.id} className="hover:bg-gray-50 transition relative">
                     <td className="px-6 py-4 font-bold text-gray-900">{qt.number}</td>
-                    <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(qt.clientId)?.name || 'Unknown Client'}</td>
+                    <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(qt.clientId, qt)?.name || 'Unknown Client'}</td>
                     <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">{new Date(qt.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</td>
                     <td className="px-6 py-4 font-black text-indigo-700">{formatCurrency(total)}</td>
                     <td className="px-6 py-4">

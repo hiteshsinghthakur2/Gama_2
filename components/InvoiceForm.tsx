@@ -188,7 +188,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
     e.preventDefault();
     if (onSaveClient) {
       onSaveClient(clientFormState);
-      setDocument((prev: any) => ({ ...prev, clientId: clientFormState.id }));
+      setDocument((prev: any) => ({ ...prev, clientId: clientFormState.id, clientDetails: clientFormState }));
       setIsClientModalOpen(false);
     }
   };
@@ -206,7 +206,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
       }
   }, [termsMode, userProfile.defaultTerms]);
 
-  const selectedClient = useMemo(() => clients.find(c => c.id === document.clientId), [clients, document.clientId]);
+  const selectedClient = useMemo(() => (document as any).clientDetails || clients.find(c => c.id === document.clientId), [clients, document.clientId, (document as any).clientDetails]);
   
   const isInterState = useMemo(() => {
     if (document.taxType === 'igst') return true;
@@ -317,6 +317,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
         return {
             ...prev,
             clientId: newClientId,
+            clientDetails: client || null,
             placeOfSupply: newPlaceOfSupply,
             customFields: mergedFields
         };

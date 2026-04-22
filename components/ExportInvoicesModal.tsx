@@ -259,7 +259,7 @@ const ExportInvoicesModal: React.FC<ExportInvoicesModalProps> = ({ isOpen, onClo
                         <div className="text-sm font-bold text-gray-900">{inv.number}</div>
                         <div className="text-[10px] text-gray-500 flex justify-between">
                           <span>{new Date(inv.date).toLocaleDateString()}</span>
-                          <span>{clients.find(c => c.id === inv.clientId)?.name}</span>
+                          <span>{inv.clientDetails?.name || clients.find(c => c.id === inv.clientId)?.name || 'Unknown Client'}</span>
                         </div>
                       </div>
                     </label>
@@ -355,7 +355,7 @@ const ExportInvoicesModal: React.FC<ExportInvoicesModalProps> = ({ isOpen, onClo
             <DocumentTemplate 
               document={currentExportInvoice} 
               userProfile={userProfile} 
-              client={clients.find(c => c.id === currentExportInvoice.clientId)} 
+              client={currentExportInvoice.clientDetails || clients.find(c => c.id === currentExportInvoice.clientId)} 
               mode="invoice" 
             />
           </div>

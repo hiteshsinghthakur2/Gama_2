@@ -102,6 +102,7 @@ export interface Invoice {
   poNumber?: string; // Kept for backward compatibility, UI uses customFields
   status: InvoiceStatus;
   clientId: string;
+  clientDetails?: Client; // Embedded snapshot of the client at creation/edit time
   items: LineItem[];
   notes?: string;
   terms?: string;
@@ -125,6 +126,7 @@ export interface Quotation {
   validUntil: string; // Equivalent to dueDate
   status: QuotationStatus;
   clientId: string;
+  clientDetails?: Client; // Embedded snapshot
   items: LineItem[];
   notes?: string;
   terms?: string;
@@ -152,6 +154,7 @@ export interface DeliveryChallan {
   date: string;
   status: DeliveryChallanStatus;
   clientId: string;
+  clientDetails?: Client; // Embedded snapshot
   items: LineItem[];
   notes?: string;
   terms?: string;

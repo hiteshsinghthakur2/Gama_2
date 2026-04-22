@@ -42,7 +42,10 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  const getClient = (id: string) => clients.find(c => c.id === id);
+  const getClient = (id: string, inv?: Invoice) => {
+    if (inv && inv.clientDetails) return inv.clientDetails;
+    return clients.find(c => c.id === id);
+  };
 
   const getStatusStyle = (status: InvoiceStatus) => {
     switch (status) {
@@ -55,7 +58,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   };
 
   const handleShare = (inv: Invoice, target: 'whatsapp' | 'email' | 'download') => {
-    setShareData({ doc: inv, client: getClient(inv.clientId), target });
+    setShareData({ doc: inv, client: getClient(inv.clientId, inv), target });
     setActiveMenuId(null);
   };
 
@@ -211,7 +214,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     // Search Filter
     if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const client = getClient(inv.clientId);
+        const client = getClient(inv.clientId, inv);
         const matchNumber = inv.number.toLowerCase().includes(query);
         const matchClient = client && client.name.toLowerCase().includes(query);
         const matchItems = inv.items.some(item => item.description.toLowerCase().includes(query));
@@ -371,7 +374,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                 return (
                   <tr key={inv.id} className="hover:bg-gray-50 transition">
                   <td className="px-6 py-4 font-bold text-gray-900">{inv.number}</td>
-                  <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(inv.clientId)?.name || 'Unknown Client'}</td>
+                  <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(inv.clientId, inv)?.name || 'Unknown Client'}</td>
                   <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">{new Date(inv.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</td>
                   <td className="px-6 py-4 font-black text-indigo-700">{formatCurrency(total)}</td>
                   <td className="px-6 py-4">

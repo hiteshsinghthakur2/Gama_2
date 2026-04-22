@@ -28,8 +28,7 @@ import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import UserProfile from './components/UserProfile';
 import ExportInvoicesModal from './components/ExportInvoicesModal';
-import { parseInvoiceFromImage, parseInvoicesBatch, parseBankStatementFromImage } from './services/geminiService';
-import { parseInvoiceLocal } from './services/localExtractionService';
+import { parseInvoiceFromImage, parseBankStatementFromImage } from './services/geminiService';
 import { calculateDocumentTotal } from './services/Calculations';
 import Tools from './components/Tools';
 
@@ -51,7 +50,6 @@ const App: React.FC = () => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isUploadingBill, setIsUploadingBill] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{current: number, total: number} | null>(null);
-  const [extractionMode, setExtractionMode] = useState<'ai-batch' | 'ai-single' | 'local'>('ai-batch');
 
   const [uploadConflicts, setUploadConflicts] = useState<{
     conflicting: { parsed: Invoice; existing: Invoice }[];
@@ -107,9 +105,12 @@ const App: React.FC = () => {
       ]);
       
       setUserProfile(p);
-      setInvoices(i);
-      setQuotations(q);
-      setDeliveryChallans(dc);
+      // Migrate existing documents to have clientDetails permanently
+      const migrateDocs = (docs: any[], clientsList: Client[]) => docs.map((d: any) => d.clientDetails ? d : { ...d, clientDetails: clientsList.find(c => c.id === d.clientId) || null });
+      
+      setInvoices(migrateDocs(i, c) as Invoice[]);
+      setQuotations(migrateDocs(q, c) as Quotation[]);
+      setDeliveryChallans(migrateDocs(dc, c) as DeliveryChallan[]);
       setLeads(l.length ? l : [
         { id: 'lead-1', name: 'John Doe', company: 'Nexus Inc', value: 50000, status: LeadStatus.NEW, createdAt: '2024-05-15' },
         { id: 'lead-2', name: 'Jane Smith', company: 'Global SCM', value: 120000, status: LeadStatus.PROPOSAL, createdAt: '2024-05-14' },
@@ -154,8 +155,12 @@ const App: React.FC = () => {
 
   // --- Handlers ---
   const handleSaveInvoice = (invoice: Invoice) => {
+    // Enrich with client snapshot to ensure history is preserved even if client is deleted
+    const clientSnapshot = clients.find(c => c.id === invoice.clientId) || invoice.clientDetails;
+    const invoiceToSave = { ...invoice, clientDetails: clientSnapshot };
+
     setInvoices(prev => {
-      const exists = prev.find(inv => inv.id === invoice.id);
+      const exists = prev.find(inv => inv.id === invoiceToSave.id);
       if (!exists && userProfile.invoiceSequence) {
         setUserProfile(p => ({
           ...p,
@@ -165,7 +170,7 @@ const App: React.FC = () => {
           }
         }));
       }
-      return exists ? prev.map(inv => inv.id === invoice.id ? invoice : inv) : [invoice, ...prev];
+      return exists ? prev.map(inv => inv.id === invoiceToSave.id ? invoiceToSave : inv) : [invoiceToSave, ...prev];
     });
     setEditingInvoice(null);
   };
@@ -179,8 +184,11 @@ const App: React.FC = () => {
   };
 
   const handleSaveQuotation = (quotation: Quotation) => {
+    const clientSnapshot = clients.find(c => c.id === quotation.clientId) || quotation.clientDetails;
+    const quotationToSave = { ...quotation, clientDetails: clientSnapshot };
+
     setQuotations(prev => {
-      const exists = prev.find(q => q.id === quotation.id);
+      const exists = prev.find(q => q.id === quotationToSave.id);
       if (!exists && userProfile.quotationSequence) {
         setUserProfile(p => ({
           ...p,
@@ -190,14 +198,17 @@ const App: React.FC = () => {
           }
         }));
       }
-      return exists ? prev.map(q => q.id === quotation.id ? quotation : q) : [quotation, ...prev];
+      return exists ? prev.map(q => q.id === quotationToSave.id ? quotationToSave : q) : [quotationToSave, ...prev];
     });
     setEditingQuotation(null);
   };
 
   const handleSaveDeliveryChallan = (challan: DeliveryChallan) => {
+    const clientSnapshot = clients.find(c => c.id === challan.clientId) || challan.clientDetails;
+    const challanToSave = { ...challan, clientDetails: clientSnapshot };
+
     setDeliveryChallans(prev => {
-      const exists = prev.find(dc => dc.id === challan.id);
+      const exists = prev.find(dc => dc.id === challanToSave.id);
       if (!exists && userProfile.challanSequence) {
         setUserProfile(p => ({
           ...p,
@@ -207,7 +218,7 @@ const App: React.FC = () => {
           }
         }));
       }
-      return exists ? prev.map(dc => dc.id === challan.id ? challan : dc) : [challan, ...prev];
+      return exists ? prev.map(dc => dc.id === challanToSave.id ? challanToSave : dc) : [challanToSave, ...prev];
     });
     setEditingDeliveryChallan(null);
   };
@@ -235,6 +246,7 @@ const App: React.FC = () => {
       poNumber: '',
       status: InvoiceStatus.DRAFT,
       clientId: quotation.clientId,
+      clientDetails: quotation.clientDetails,
       items: quotation.items.map(item => ({...item})),
       notes: quotation.notes,
       terms: quotation.terms || userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.',
@@ -267,6 +279,7 @@ const App: React.FC = () => {
       date: new Date().toISOString().split('T')[0],
       status: DeliveryChallanStatus.DRAFT,
       clientId: invoice.clientId,
+      clientDetails: invoice.clientDetails,
       items: invoice.items.map(item => ({...item})),
       placeOfSupply: invoice.placeOfSupply,
       terms: invoice.terms || userProfile.defaultChallanTerms || '1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.'
@@ -289,16 +302,23 @@ const App: React.FC = () => {
     let updatedClients = [...clients];
     let clientsChanged = false;
 
-        const processParsedItem = (parsedData: any, file: File, i: number, parseResult: any) => {
-          if (!parsedData) {
-            console.warn(`Could not extract details from file: ${file.name}`);
-            conflicting.push({ 
-              parsed: { id: `err-${Date.now()}`, number: `Error: ${file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
-              existing: { id: `msg-${Date.now()}`, number: `Extraction Failed: ${parseResult?.error || 'Unknown error'}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
-            });
-            return;
-          }
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setUploadProgress({ current: i + 1, total: files.length });
+      
+      try {
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
 
+        const parseResult = await parseInvoiceFromImage(base64Data, file.type);
+        
+        if (parseResult && parseResult.success) {
+          const parsedData = parseResult.data;
+          
           const normalizeString = (s?: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
           let clientId = '';
@@ -385,6 +405,7 @@ const App: React.FC = () => {
             dueDate: parsedData.dueDate || '',
             status: InvoiceStatus.DRAFT,
             clientId: clientId,
+            clientDetails: updatedClients.find(c => c.id === clientId),
             items: parsedData.items && parsedData.items.length > 0 ? parsedData.items.map((item: any, index: number) => ({
               id: `item-${Date.now()}-${i}-${index}`,
               description: item.description || '',
@@ -416,71 +437,20 @@ const App: React.FC = () => {
           } else {
             strictlyNew.push(newInvoice);
           }
-    };
-
-    const fileDataArray: { file: File, base64Data: string, mimeType: string, id: string }[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const base64Data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      fileDataArray.push({ file, base64Data, mimeType: file.type, id: `file-${i}` });
-    }
-
-    if (extractionMode === 'ai-batch' && files.length > 1) {
-        setUploadProgress({ current: 0, total: files.length });
-        const chunkSize = 8;
-        for (let i = 0; i < fileDataArray.length; i += chunkSize) {
-            const chunk = fileDataArray.slice(i, i + chunkSize);
-            try {
-                const parseResult = await parseInvoicesBatch(chunk.map(c => ({ base64Data: c.base64Data, mimeType: c.mimeType, id: c.id })));
-                if (parseResult.success && parseResult.data) {
-                    chunk.forEach((fileReq, idx) => {
-                        const parsedData = parseResult.data.find((d: any) => d.fileId === fileReq.id);
-                        processParsedItem(parsedData, fileReq.file, i + idx, parseResult);
-                    });
-                } else {
-                    chunk.forEach((fileReq) => {
-                       conflicting.push({ 
-                         parsed: { id: `err-${Date.now()}`, number: `Error: ${fileReq.file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
-                         existing: { id: `msg-${Date.now()}`, number: `Batch Extraction Failed: ${parseResult.error || 'Unknown error'}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
-                       });
-                    });
-                }
-            } catch (err: any) {
-                chunk.forEach((fileReq) => {
-                    conflicting.push({ 
-                      parsed: { id: `err-${Date.now()}`, number: `Error: ${fileReq.file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
-                      existing: { id: `msg-${Date.now()}`, number: `Processing Error: ${err.message || err}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
-                    });
-                });
-            }
-            setUploadProgress({ current: Math.min(i + chunkSize, files.length), total: files.length });
+        } else {
+          console.warn(`Could not extract details from file: ${file.name}`);
+          conflicting.push({ 
+            parsed: { id: `err-${Date.now()}`, number: `Error: ${file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
+            existing: { id: `msg-${Date.now()}`, number: `Extraction Failed: ${parseResult?.error || 'Unknown error'}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
+          });
         }
-    } else {
-        for (let i = 0; i < fileDataArray.length; i++) {
-          const fileReq = fileDataArray[i];
-          setUploadProgress({ current: i + 1, total: files.length });
-          try {
-            let parseResult;
-            if (extractionMode === 'local') {
-                parseResult = await parseInvoiceLocal(fileReq.file, fileReq.base64Data);
-            } else {
-                parseResult = await parseInvoiceFromImage(fileReq.base64Data, fileReq.mimeType);
-            }
-            
-            if (parseResult && parseResult.success) {
-                processParsedItem(parseResult.data, fileReq.file, i, parseResult);
-            } else {
-                processParsedItem(null, fileReq.file, i, parseResult);
-            }
-          } catch(err: any) {
-             processParsedItem(null, fileReq.file, i, { error: err.message || err });
-          }
-        }
+      } catch (error) {
+        console.error(`Error processing file ${file.name}:`, error);
+        conflicting.push({ 
+            parsed: { id: `err-${Date.now()}`, number: `Error: ${file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
+            existing: { id: `msg-${Date.now()}`, number: `Processing Error: ${(error as any)?.message || error}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
+        });
+      }
     }
 
     if (conflicting.length > 0) {
@@ -659,16 +629,6 @@ const App: React.FC = () => {
                   onChange={handleUploadBill} 
                   multiple
                 />
-                <select
-                  value={extractionMode}
-                  onChange={(e) => setExtractionMode(e.target.value as 'ai-batch' | 'ai-single' | 'local')}
-                  disabled={isUploadingBill}
-                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-50 transition font-bold shadow-sm outline-none focus:border-indigo-500 disabled:opacity-50"
-                >
-                  <option value="ai-batch">Smart AI (Batch limits)</option>
-                  <option value="ai-single">AI Standard (Single)</option>
-                  <option value="local">Pure Code (No AI)</option>
-                </select>
                 <button 
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploadingBill}
