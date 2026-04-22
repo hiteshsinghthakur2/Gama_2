@@ -28,7 +28,8 @@ import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import UserProfile from './components/UserProfile';
 import ExportInvoicesModal from './components/ExportInvoicesModal';
-import { parseInvoiceFromImage, parseBankStatementFromImage } from './services/geminiService';
+import { parseInvoiceFromImage, parseInvoicesBatch, parseBankStatementFromImage } from './services/geminiService';
+import { parseInvoiceLocal } from './services/localExtractionService';
 import { calculateDocumentTotal } from './services/Calculations';
 import Tools from './components/Tools';
 
@@ -50,6 +51,7 @@ const App: React.FC = () => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isUploadingBill, setIsUploadingBill] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{current: number, total: number} | null>(null);
+  const [extractionMode, setExtractionMode] = useState<'ai-batch' | 'ai-single' | 'local'>('ai-batch');
 
   const [uploadConflicts, setUploadConflicts] = useState<{
     conflicting: { parsed: Invoice; existing: Invoice }[];
@@ -287,23 +289,16 @@ const App: React.FC = () => {
     let updatedClients = [...clients];
     let clientsChanged = false;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      setUploadProgress({ current: i + 1, total: files.length });
-      
-      try {
-        const base64Data = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+        const processParsedItem = (parsedData: any, file: File, i: number, parseResult: any) => {
+          if (!parsedData) {
+            console.warn(`Could not extract details from file: ${file.name}`);
+            conflicting.push({ 
+              parsed: { id: `err-${Date.now()}`, number: `Error: ${file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
+              existing: { id: `msg-${Date.now()}`, number: `Extraction Failed: ${parseResult?.error || 'Unknown error'}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
+            });
+            return;
+          }
 
-        const parseResult = await parseInvoiceFromImage(base64Data, file.type);
-        
-        if (parseResult && parseResult.success) {
-          const parsedData = parseResult.data;
-          
           const normalizeString = (s?: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
           let clientId = '';
@@ -328,7 +323,6 @@ const App: React.FC = () => {
                if (pGstin && cGstin && pGstin !== cGstin) return false;
                if (pPhone && cPhone && pPhone !== cPhone) return false;
                
-               // Strong mismatch check
                if (pStreet && cStreet && !cStreet.includes(pStreet.substring(0, 10)) && !pStreet.includes(cStreet.substring(0, 10))) return false;
                if (pCity && cCity && pCity !== cCity) return false;
 
@@ -357,7 +351,6 @@ const App: React.FC = () => {
                 pan: parsedData.clientPan || ''
               };
               
-              // Apply simple logic if AI explicitly marked Registered true but Gstin was somehow missed
               if (parsedData.clientRegistered && !newClient.gstin) {
                  newClient.customFields = [{ label: 'Status', value: 'Registered (GSTIN Missing)' }];
               } else if (!parsedData.clientRegistered && !newClient.gstin) {
@@ -410,7 +403,6 @@ const App: React.FC = () => {
             terms: parsedData.termsAndConditions || userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
           };
 
-          // Only consider it a conflict if the invoice number AND the selected client match perfectly
           let existing;
           if (parsedNumber) {
             existing = invoices.find(inv => 
@@ -424,22 +416,71 @@ const App: React.FC = () => {
           } else {
             strictlyNew.push(newInvoice);
           }
-        } else {
-          console.warn(`Could not extract details from file: ${file.name}`);
-          // Instead of breaking the loop or alerting, we simply log extraction failure to a UI-friendly list later
-          conflicting.push({ 
-            parsed: { id: `err-${Date.now()}`, number: `Error: ${file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
-             // We use 'existing' as a hack to show the error message in the conflict modal without writing a whole new modal
-            existing: { id: `msg-${Date.now()}`, number: `Extraction Failed: ${parseResult?.error || 'Unknown error'}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
-          });
+    };
+
+    const fileDataArray: { file: File, base64Data: string, mimeType: string, id: string }[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      fileDataArray.push({ file, base64Data, mimeType: file.type, id: `file-${i}` });
+    }
+
+    if (extractionMode === 'ai-batch' && files.length > 1) {
+        setUploadProgress({ current: 0, total: files.length });
+        const chunkSize = 8;
+        for (let i = 0; i < fileDataArray.length; i += chunkSize) {
+            const chunk = fileDataArray.slice(i, i + chunkSize);
+            try {
+                const parseResult = await parseInvoicesBatch(chunk.map(c => ({ base64Data: c.base64Data, mimeType: c.mimeType, id: c.id })));
+                if (parseResult.success && parseResult.data) {
+                    chunk.forEach((fileReq, idx) => {
+                        const parsedData = parseResult.data.find((d: any) => d.fileId === fileReq.id);
+                        processParsedItem(parsedData, fileReq.file, i + idx, parseResult);
+                    });
+                } else {
+                    chunk.forEach((fileReq) => {
+                       conflicting.push({ 
+                         parsed: { id: `err-${Date.now()}`, number: `Error: ${fileReq.file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
+                         existing: { id: `msg-${Date.now()}`, number: `Batch Extraction Failed: ${parseResult.error || 'Unknown error'}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
+                       });
+                    });
+                }
+            } catch (err: any) {
+                chunk.forEach((fileReq) => {
+                    conflicting.push({ 
+                      parsed: { id: `err-${Date.now()}`, number: `Error: ${fileReq.file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
+                      existing: { id: `msg-${Date.now()}`, number: `Processing Error: ${err.message || err}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
+                    });
+                });
+            }
+            setUploadProgress({ current: Math.min(i + chunkSize, files.length), total: files.length });
         }
-      } catch (error) {
-        console.error(`Error processing file ${file.name}:`, error);
-        conflicting.push({ 
-            parsed: { id: `err-${Date.now()}`, number: `Error: ${file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
-            existing: { id: `msg-${Date.now()}`, number: `Processing Error: ${(error as any)?.message || error}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
-        });
-      }
+    } else {
+        for (let i = 0; i < fileDataArray.length; i++) {
+          const fileReq = fileDataArray[i];
+          setUploadProgress({ current: i + 1, total: files.length });
+          try {
+            let parseResult;
+            if (extractionMode === 'local') {
+                parseResult = await parseInvoiceLocal(fileReq.file, fileReq.base64Data);
+            } else {
+                parseResult = await parseInvoiceFromImage(fileReq.base64Data, fileReq.mimeType);
+            }
+            
+            if (parseResult && parseResult.success) {
+                processParsedItem(parseResult.data, fileReq.file, i, parseResult);
+            } else {
+                processParsedItem(null, fileReq.file, i, parseResult);
+            }
+          } catch(err: any) {
+             processParsedItem(null, fileReq.file, i, { error: err.message || err });
+          }
+        }
     }
 
     if (conflicting.length > 0) {
@@ -457,6 +498,7 @@ const App: React.FC = () => {
     if (invoicesToApply.length === 0 && filesCount > 0) {
       setIsUploadingBill(false);
       setUploadProgress(null);
+      setUploadConflicts(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -617,6 +659,16 @@ const App: React.FC = () => {
                   onChange={handleUploadBill} 
                   multiple
                 />
+                <select
+                  value={extractionMode}
+                  onChange={(e) => setExtractionMode(e.target.value as 'ai-batch' | 'ai-single' | 'local')}
+                  disabled={isUploadingBill}
+                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-50 transition font-bold shadow-sm outline-none focus:border-indigo-500 disabled:opacity-50"
+                >
+                  <option value="ai-batch">Smart AI (Batch limits)</option>
+                  <option value="ai-single">AI Standard (Single)</option>
+                  <option value="local">Pure Code (No AI)</option>
+                </select>
                 <button 
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploadingBill}
