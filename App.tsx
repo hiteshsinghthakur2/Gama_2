@@ -13,7 +13,7 @@ import {
   UserBusinessProfile,
   AppUser
 } from './types';
-import { INITIAL_USER_PROFILE } from './constants';
+import { INITIAL_USER_PROFILE, INDIAN_STATES } from './constants';
 import { StorageService } from './services/StorageService';
 import Dashboard from './components/Dashboard';
 import InvoiceList from './components/InvoiceList';
@@ -152,6 +152,24 @@ const App: React.FC = () => {
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.LEADS, leads); }, [leads, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.CLIENTS, clients); }, [clients, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.PROFILE, userProfile); }, [userProfile, isLoading]);
+
+  // --- Helper to initialize placeOfSupply correctly based on first client ---
+  const getInitialPlaceOfSupply = (clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return `${userProfile.address.state} (${userProfile.address.stateCode})`;
+    
+    let code = '';
+    if (client.gstin && client.gstin.length >= 2) {
+        code = client.gstin.substring(0, 2);
+    } else if (client.address && client.address.stateCode) {
+        code = client.address.stateCode;
+    }
+    const stateObj = INDIAN_STATES.find(s => s.code === code);
+    const name = stateObj ? stateObj.name : client.address?.state;
+    if (name && code) return `${name} (${code})`;
+    if (name) return name;
+    return `${userProfile.address.state} (${userProfile.address.stateCode})`;
+  };
 
   // --- Handlers ---
   const handleSaveInvoice = (invoice: Invoice) => {
@@ -678,7 +696,7 @@ const App: React.FC = () => {
                       status: InvoiceStatus.DRAFT, 
                       clientId: clients[0]?.id || '', 
                       items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
-                      placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
+                      placeOfSupply: getInitialPlaceOfSupply(clients[0]?.id || ''),
                       bankDetails: userProfile.bankAccounts[0],
                       terms: userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
                     });
@@ -725,7 +743,7 @@ const App: React.FC = () => {
                     status: QuotationStatus.DRAFT, 
                     clientId: clients[0]?.id || '', 
                     items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
-                    placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
+                    placeOfSupply: getInitialPlaceOfSupply(clients[0]?.id || ''),
                     bankDetails: userProfile.bankAccounts[0],
                     terms: userProfile.defaultQuotationTerms || 'Valid for 30 days.'
                   });
@@ -764,7 +782,7 @@ const App: React.FC = () => {
                     clientId: clients[0]?.id || '', 
                     showAmountDetails: true,
                     items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
-                    placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
+                    placeOfSupply: getInitialPlaceOfSupply(clients[0]?.id || ''),
                     terms: userProfile.defaultChallanTerms || '1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.'
                   });
                 }}
