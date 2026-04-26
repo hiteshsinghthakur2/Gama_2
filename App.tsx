@@ -280,6 +280,7 @@ const App: React.FC = () => {
       status: DeliveryChallanStatus.DRAFT,
       clientId: invoice.clientId,
       clientDetails: invoice.clientDetails,
+      showAmountDetails: true,
       items: invoice.items.map(item => ({...item})),
       placeOfSupply: invoice.placeOfSupply,
       terms: invoice.terms || userProfile.defaultChallanTerms || '1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.'
@@ -761,6 +762,7 @@ const App: React.FC = () => {
                     date: new Date().toISOString().split('T')[0], 
                     status: DeliveryChallanStatus.DRAFT, 
                     clientId: clients[0]?.id || '', 
+                    showAmountDetails: true,
                     items: [{ id: '1', description: '', hsn: '', qty: 1, rate: 0, taxRate: 18 }],
                     placeOfSupply: `${userProfile.address.state} (${userProfile.address.stateCode})`,
                     terms: userProfile.defaultChallanTerms || '1. Goods once sold will not be taken back.\n2. Subject to local jurisdiction.'

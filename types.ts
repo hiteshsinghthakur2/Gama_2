@@ -162,6 +162,7 @@ export interface DeliveryChallan {
   customFields?: CustomField[];
   additionalCharges?: AdditionalCharge[];
   taxType?: 'auto' | 'cgst_sgst' | 'igst';
+  showAmountDetails?: boolean;
 }
 
 export enum LeadStatus {

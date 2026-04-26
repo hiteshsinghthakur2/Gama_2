@@ -1241,17 +1241,33 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
              </div>
           </div>
           
-          <div className="flex items-center gap-3 mb-8 bg-gray-50 p-4 rounded-lg">
-             <input 
-                type="checkbox" 
-                id="showBankDetails"
-                checked={document.showBankDetails}
-                onChange={(e) => setDocument({...document, showBankDetails: e.target.checked})}
-                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
-             />
-             <label htmlFor="showBankDetails" className="text-sm font-medium text-gray-700 select-none cursor-pointer">
-                Include Bank Details in Print/PDF
-             </label>
+          <div className="flex flex-col gap-3 mb-8 bg-gray-50 p-4 rounded-lg">
+             <div className="flex items-center gap-3">
+                 <input 
+                    type="checkbox" 
+                    id="showBankDetails"
+                    checked={document.showBankDetails}
+                    onChange={(e) => setDocument({...document, showBankDetails: e.target.checked})}
+                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                 />
+                 <label htmlFor="showBankDetails" className="text-sm font-medium text-gray-700 select-none cursor-pointer">
+                    Include Bank Details in Print/PDF
+                 </label>
+             </div>
+             {isDeliveryChallan && (
+                 <div className="flex items-center gap-3 mt-2 border-t pt-3 border-gray-200">
+                     <input 
+                        type="checkbox" 
+                        id="showAmountDetails"
+                        checked={document.showAmountDetails !== false}
+                        onChange={(e) => setDocument({...document, showAmountDetails: e.target.checked})}
+                        className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                     />
+                     <label htmlFor="showAmountDetails" className="text-sm font-medium text-gray-700 select-none cursor-pointer">
+                        Include Amount & Pricing Details in Print/PDF
+                     </label>
+                 </div>
+             )}
           </div>
           
           <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 flex justify-center z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
