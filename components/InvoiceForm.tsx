@@ -1372,21 +1372,25 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           <table className="w-full mb-4 border-collapse table-fixed">
               <thead className="bg-[#5c2c90] text-white">
                   <tr>
-                      <th className="py-2 px-2 text-left text-xs font-bold uppercase tracking-wider w-[25%]">Item</th>
-                      <th className="py-2 px-1 text-center text-xs font-bold uppercase tracking-wider w-[10%]">HSN/SAC</th>
-                      <th className="py-2 px-1 text-center text-xs font-bold uppercase tracking-wider w-[5%]">GST</th>
-                      <th className="py-2 px-1 text-center text-xs font-bold uppercase tracking-wider w-[5%]">Qty</th>
-                      <th className="py-2 px-1 text-right text-xs font-bold uppercase tracking-wider w-[10%]">Rate</th>
-                      <th className="py-2 px-1 text-right text-xs font-bold uppercase tracking-wider w-[15%]">Taxable</th>
-                      {isInterState ? (
-                          <th className="py-2 px-1 text-right text-xs font-bold uppercase tracking-wider w-[15%]">IGST</th>
-                      ) : (
+                      <th className={`py-2 px-2 text-left text-xs font-bold uppercase tracking-wider ${isDeliveryChallan && document.showAmountDetails === false ? 'w-[75%]' : 'w-[25%]'}`}>Item</th>
+                      <th className={`py-2 px-1 text-center text-xs font-bold uppercase tracking-wider ${isDeliveryChallan && document.showAmountDetails === false ? 'w-[15%]' : 'w-[10%]'}`}>HSN/SAC</th>
+                      {!(isDeliveryChallan && document.showAmountDetails === false) && <th className="py-2 px-1 text-center text-xs font-bold uppercase tracking-wider w-[5%]">GST</th>}
+                      <th className={`py-2 px-1 text-center text-xs font-bold uppercase tracking-wider ${isDeliveryChallan && document.showAmountDetails === false ? 'w-[10%]' : 'w-[5%]'}`}>Qty</th>
+                      {!(isDeliveryChallan && document.showAmountDetails === false) && (
                           <>
-                            <th className="py-2 px-1 text-right text-xs font-bold uppercase tracking-wider w-[10%]">CGST</th>
-                            <th className="py-2 px-1 text-right text-xs font-bold uppercase tracking-wider w-[10%]">SGST</th>
+                            <th className="py-2 px-1 text-right text-xs font-bold uppercase tracking-wider w-[10%]">Rate</th>
+                            <th className="py-2 px-1 text-right text-xs font-bold uppercase tracking-wider w-[15%]">Taxable</th>
+                            {isInterState ? (
+                                <th className="py-2 px-1 text-right text-xs font-bold uppercase tracking-wider w-[15%]">IGST</th>
+                            ) : (
+                                <>
+                                  <th className="py-2 px-1 text-right text-xs font-bold uppercase tracking-wider w-[10%]">CGST</th>
+                                  <th className="py-2 px-1 text-right text-xs font-bold uppercase tracking-wider w-[10%]">SGST</th>
+                                </>
+                            )}
+                            <th className="py-2 px-2 text-right text-xs font-bold uppercase tracking-wider w-[15%]">Total</th>
                           </>
                       )}
-                      <th className="py-2 px-2 text-right text-xs font-bold uppercase tracking-wider w-[15%]">Total</th>
                   </tr>
               </thead>
               <tbody className="text-xs">
@@ -1401,19 +1405,23 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                                   )}
                               </td>
                               <td className="py-2 px-1 text-center text-gray-600">{item.hsn}</td>
-                              <td className="py-2 px-1 text-center">{item.taxRate}%</td>
+                              {!(isDeliveryChallan && document.showAmountDetails === false) && <td className="py-2 px-1 text-center">{item.taxRate}%</td>}
                               <td className="py-2 px-1 text-center font-medium">{item.qty}</td>
-                              <td className="py-2 px-1 text-right">₹{item.rate}</td>
-                              <td className="py-2 px-1 text-right font-medium">₹{calc.taxableValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                              {isInterState ? (
-                                  <td className="py-2 px-1 text-right text-gray-600">₹{calc.igst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                              ) : (
+                              {!(isDeliveryChallan && document.showAmountDetails === false) && (
                                   <>
-                                    <td className="py-2 px-1 text-right text-gray-600">₹{calc.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                                    <td className="py-2 px-1 text-right text-gray-600">₹{calc.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                                    <td className="py-2 px-1 text-right">₹{item.rate}</td>
+                                    <td className="py-2 px-1 text-right font-medium">₹{calc.taxableValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                                    {isInterState ? (
+                                        <td className="py-2 px-1 text-right text-gray-600">₹{calc.igst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                                    ) : (
+                                        <>
+                                          <td className="py-2 px-1 text-right text-gray-600">₹{calc.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                                          <td className="py-2 px-1 text-right text-gray-600">₹{calc.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                                        </>
+                                    )}
+                                    <td className="py-2 px-2 text-right font-bold text-gray-900">₹{calc.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                                   </>
                               )}
-                              <td className="py-2 px-2 text-right font-bold text-gray-900">₹{calc.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                           </tr>
                       );
                   })}
@@ -1421,9 +1429,11 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
           </table>
 
           {/* Total in Words - Full Width Strip */}
-          <div className="mb-4 border-b border-t border-gray-100 py-2 bg-gray-50/30 break-inside-avoid">
-             <p className="text-sm text-gray-700">Total in words: <span className="font-bold text-gray-900 capitalize italic">{numberToWords(Math.round(totals.finalTotal))}</span></p>
-          </div>
+          {!(isDeliveryChallan && document.showAmountDetails === false) && (
+              <div className="mb-4 border-b border-t border-gray-100 py-2 bg-gray-50/30 break-inside-avoid">
+                 <p className="text-sm text-gray-700">Total in words: <span className="font-bold text-gray-900 capitalize italic">{numberToWords(Math.round(totals.finalTotal))}</span></p>
+              </div>
+          )}
 
           {/* Lower Section Grid - Optimized Layout */}
           <div className="grid grid-cols-2 gap-8 mb-4 items-start break-inside-avoid">
@@ -1467,57 +1477,61 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
               </div>
 
               {/* Right Column: Calculations */}
-              <div className="flex flex-col">
-                   <div className="space-y-2 text-sm border-b border-gray-200 pb-2">
-                      <div className="flex justify-between text-gray-600">
-                          <span>Taxable Amount</span>
-                          <span className="font-medium">₹{totals.taxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                      </div>
-                      <div className="flex justify-between text-gray-600">
-                          <span>CGST</span>
-                          <span className="font-medium">₹{totals.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                      </div>
-                      <div className="flex justify-between text-gray-600">
-                          <span>SGST</span>
-                          <span className="font-medium">₹{totals.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                      </div>
-                      
-                      {/* Optional IGST */}
-                      {totals.igst > 0 && (
+              <div className="flex flex-col flex-1 justify-end">
+                   {!(isDeliveryChallan && document.showAmountDetails === false) && (
+                       <>
+                       <div className="space-y-2 text-sm border-b border-gray-200 pb-2">
                           <div className="flex justify-between text-gray-600">
-                              <span>IGST</span>
-                              <span className="font-medium">₹{totals.igst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                              <span>Taxable Amount</span>
+                              <span className="font-medium">₹{totals.taxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                           </div>
-                      )}
+                          <div className="flex justify-between text-gray-600">
+                              <span>CGST</span>
+                              <span className="font-medium">₹{totals.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                          </div>
+                          <div className="flex justify-between text-gray-600">
+                              <span>SGST</span>
+                              <span className="font-medium">₹{totals.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                          </div>
+                          
+                          {/* Optional IGST */}
+                          {totals.igst > 0 && (
+                              <div className="flex justify-between text-gray-600">
+                                  <span>IGST</span>
+                                  <span className="font-medium">₹{totals.igst.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                              </div>
+                          )}
 
-                      {document.additionalCharges && document.additionalCharges.length > 0 && document.additionalCharges.map((charge: AdditionalCharge) => (
-                          <div key={charge.id} className="flex justify-between text-gray-600">
-                              <span>{charge.label || 'Additional Charge'}</span>
-                              <span className="font-medium">₹{(charge.amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                          </div>
-                      ))}
-                      
-                      {totals.discountAmount > 0 && (
-                          <div className="flex justify-between text-emerald-600">
-                              <span>Discount</span>
-                              <span className="font-medium">- ₹{totals.discountAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                          </div>
-                      )}
-                      
-                      {document.roundOff !== 0 && (
-                          <div className="flex justify-between text-gray-400 italic">
-                              <span>Round Off</span>
-                              <span>{document.roundOff > 0 ? '+' : ''} ₹{document.roundOff?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                          </div>
-                      )}
-                   </div>
+                          {document.additionalCharges && document.additionalCharges.length > 0 && document.additionalCharges.map((charge: AdditionalCharge) => (
+                              <div key={charge.id} className="flex justify-between text-gray-600">
+                                  <span>{charge.label || 'Additional Charge'}</span>
+                                  <span className="font-medium">₹{(charge.amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                              </div>
+                          ))}
+                          
+                          {totals.discountAmount > 0 && (
+                              <div className="flex justify-between text-emerald-600">
+                                  <span>Discount</span>
+                                  <span className="font-medium">- ₹{totals.discountAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                              </div>
+                          )}
+                          
+                          {document.roundOff !== 0 && (
+                              <div className="flex justify-between text-gray-400 italic">
+                                  <span>Round Off</span>
+                                  <span>{document.roundOff > 0 ? '+' : ''} ₹{document.roundOff?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                              </div>
+                          )}
+                       </div>
 
-                   <div className="flex justify-between items-center py-2 bg-[#f8f5ff] -mx-4 px-4 mt-2 rounded">
-                       <span className="text-[#5c2c90] font-bold text-lg">Total Amount</span>
-                       <span className="text-[#5c2c90] font-bold text-xl">₹{totals.finalTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                   </div>
+                       <div className="flex justify-between items-center py-2 bg-[#f8f5ff] -mx-4 px-4 mt-2 rounded">
+                           <span className="text-[#5c2c90] font-bold text-lg">Total Amount</span>
+                           <span className="text-[#5c2c90] font-bold text-xl">₹{totals.finalTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                       </div>
+                       </>
+                   )}
                    
-                   <div className="mt-8 text-right">
+                   <div className={`${isDeliveryChallan && document.showAmountDetails === false ? 'mt-0' : 'mt-8'} text-right`}>
                        <p className="font-bold text-gray-900 mb-6">{userProfile.companyName}</p>
                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wider border-t border-gray-200 inline-block pt-2 px-8">Authorized Signatory</p>
                    </div>
