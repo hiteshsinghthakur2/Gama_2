@@ -14,7 +14,7 @@ const getApiKey = () => {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const parseInvoiceFromImage = async (base64Data: string, mimeType: string, retries = 3, targetModel = 'gemini-2.0-flash'): Promise<{ success: boolean; data?: any; error?: string }> => {
+export const parseInvoiceFromImage = async (base64Data: string, mimeType: string, retries = 3, targetModel = 'gemini-3-flash-preview'): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
     const apiKey = getApiKey();
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
@@ -103,10 +103,11 @@ export const parseInvoiceFromImage = async (base64Data: string, mimeType: string
   } catch (error: any) {
     const errorMsg = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
     
-    // If we hit hard quota on 2.0-flash, immediately fallback to 1.5-flash which has higher free tiers
-    if ((errorMsg.includes('quota') || errorMsg.includes('exceeded')) && targetModel !== 'gemini-1.5-flash') {
-        console.warn(`Model ${targetModel} hit quota limit, falling back to gemini-1.5-flash...`);
-        return parseInvoiceFromImage(base64Data, mimeType, retries, 'gemini-1.5-flash');
+    // If we hit hard quota on primary, fallback is currently disabled since we are using gemini-3-flash-preview
+    // To support future fallbacks, update the logic below appropriately.
+    if ((errorMsg.includes('quota') || errorMsg.includes('exceeded')) && targetModel !== 'gemini-3-flash-preview') {
+        console.warn(`Model ${targetModel} hit quota limit, falling back to gemini-3-flash-preview...`);
+        return parseInvoiceFromImage(base64Data, mimeType, retries, 'gemini-3-flash-preview');
     }
 
     // Automatically retry if it's a rate limit or service unavailable error (like 503)
@@ -181,7 +182,7 @@ export const fetchGSTDetailsFromGemini = async (gstin: string) => {
   }
 };
 
-export const parseBankStatementFromImage = async (base64Data: string, mimeType: string, retries = 3, targetModel = 'gemini-2.0-flash'): Promise<{ success: boolean; data?: any; error?: string }> => {
+export const parseBankStatementFromImage = async (base64Data: string, mimeType: string, retries = 3, targetModel = 'gemini-3-flash-preview'): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
     const apiKey = getApiKey();
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
@@ -234,10 +235,10 @@ export const parseBankStatementFromImage = async (base64Data: string, mimeType: 
   } catch (error: any) {
     const errorMsg = error?.message || '';
     
-    // Fallback to 1.5-flash on quota exceeded
-    if ((errorMsg.includes('quota') || errorMsg.includes('exceeded')) && targetModel !== 'gemini-1.5-flash') {
-        console.warn(`Model ${targetModel} hit quota limit, falling back to gemini-1.5-flash...`);
-        return parseBankStatementFromImage(base64Data, mimeType, retries, 'gemini-1.5-flash');
+    // Fallback on quota exceeded
+    if ((errorMsg.includes('quota') || errorMsg.includes('exceeded')) && targetModel !== 'gemini-3-flash-preview') {
+        console.warn(`Model ${targetModel} hit quota limit, falling back to gemini-3-flash-preview...`);
+        return parseBankStatementFromImage(base64Data, mimeType, retries, 'gemini-3-flash-preview');
     }
 
     if ((errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED')) && retries > 0) {
