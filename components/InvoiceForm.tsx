@@ -109,6 +109,12 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
       return `${defaultPrefix}${new Date().getFullYear().toString().slice(-2)}${Math.floor(Math.random() * 99999)}`;
     };
 
+    const defaultTermsForMode = mode === 'invoice' 
+      ? userProfile.defaultInvoiceTerms 
+      : mode === 'quotation' 
+        ? userProfile.defaultQuotationTerms 
+        : userProfile.defaultChallanTerms;
+
     const baseDoc = initialData ? { ...initialData } : {
       id: `${mode === 'invoice' ? 'inv' : 'qt'}-${Date.now()}`,
       number: generateNumber(mode),
@@ -123,7 +129,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
       placeOfSupply: 'Delhi (07)',
       bankDetails: userProfile.bankAccounts[0],
       notes: '',
-      terms: userProfile.defaultTerms || '1. For questions concerning this document, please contact Email Address : sales@craftdaddy.in\n2. All the dispute are subject to delhi jurisdiction only',
+      terms: defaultTermsForMode || '1. For questions concerning this document, please contact Email Address : sales@craftdaddy.in\n2. All the dispute are subject to delhi jurisdiction only',
       customFields: [],
       discountType: 'fixed',
       discountValue: 0,
@@ -153,12 +159,18 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
     return baseDoc;
   });
 
+  const defaultTermsForMode = mode === 'invoice' 
+      ? userProfile.defaultInvoiceTerms 
+      : mode === 'quotation' 
+        ? userProfile.defaultQuotationTerms 
+        : userProfile.defaultChallanTerms;
+
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(true);
   const [showDiscount, setShowDiscount] = useState(false);
   const [termsMode, setTermsMode] = useState<'default' | 'custom'>(() => {
-      if (userProfile.defaultTerms && document.terms === userProfile.defaultTerms) return 'default';
+      if (defaultTermsForMode && document.terms === defaultTermsForMode) return 'default';
       // If it's a new document (based on ID check or just empty terms) and default terms exist, default to 'default'
-      if (!initialData && userProfile.defaultTerms && (!document.terms || document.terms === userProfile.defaultTerms)) return 'default';
+      if (!initialData && defaultTermsForMode && (!document.terms || document.terms === defaultTermsForMode)) return 'default';
       return 'custom';
   });
   
@@ -201,10 +213,10 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
 
   // Initialize terms if default mode is active and terms are empty or match default
   useEffect(() => {
-      if (termsMode === 'default' && userProfile.defaultTerms && document.terms !== userProfile.defaultTerms) {
-          setDocument((prev: any) => ({ ...prev, terms: userProfile.defaultTerms }));
+      if (termsMode === 'default' && defaultTermsForMode && document.terms !== defaultTermsForMode) {
+          setDocument((prev: any) => ({ ...prev, terms: defaultTermsForMode }));
       }
-  }, [termsMode, userProfile.defaultTerms]);
+  }, [termsMode, defaultTermsForMode]);
 
   const selectedClient = useMemo(() => (document as any).clientDetails || clients.find(c => c.id === document.clientId), [clients, document.clientId, (document as any).clientDetails]);
   
@@ -1196,7 +1208,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                       <button 
                           onClick={() => {
                               setTermsMode('default');
-                              setDocument({...document, terms: userProfile.defaultTerms || ''});
+                              setDocument({...document, terms: defaultTermsForMode || ''});
                           }}
                           className={`px-3 py-1 rounded-md text-xs font-bold transition ${termsMode === 'default' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}
                       >
@@ -1219,7 +1231,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                   readOnly={termsMode === 'default'}
                   placeholder="Enter terms and conditions..."
               />
-              {termsMode === 'default' && !userProfile.defaultTerms && (
+              {termsMode === 'default' && !defaultTermsForMode && (
                   <p className="text-xs text-orange-500 mt-2">No default terms configured in Settings.</p>
               )}
           </div>
