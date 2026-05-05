@@ -52,8 +52,8 @@ const App: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState<{current: number, total: number} | null>(null);
 
   const [uploadConflicts, setUploadConflicts] = useState<{
-    conflicting: { parsed: Invoice; existing: Invoice }[];
-    strictlyNew: Invoice[];
+    conflicting: { parsed: Quotation; existing: Quotation }[];
+    strictlyNew: Quotation[];
     updatedClients: Client[];
     totalFiles: number;
     clientsChanged: boolean;
@@ -316,8 +316,8 @@ const App: React.FC = () => {
     setIsUploadingBill(true);
     setUploadProgress({ current: 0, total: files.length });
     
-    let strictlyNew: Invoice[] = [];
-    let conflicting: { parsed: Invoice; existing: Invoice }[] = [];
+    let strictlyNew: Quotation[] = [];
+    let conflicting: { parsed: Quotation; existing: Quotation }[] = [];
     let updatedClients = [...clients];
     let clientsChanged = false;
 
@@ -417,12 +417,12 @@ const App: React.FC = () => {
           const parsedNumber = parsedData.number;
           const newNumber = parsedNumber || `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
 
-          const newInvoice: Invoice = {
-            id: `inv-${Date.now()}-${i}`,
+          const newInvoice: Quotation = {
+            id: `qt-${Date.now()}-${i}`,
             number: newNumber,
             date: parsedData.date || new Date().toISOString().split('T')[0],
-            dueDate: parsedData.dueDate || '',
-            status: InvoiceStatus.DRAFT,
+            validUntil: parsedData.dueDate || '',
+            status: QuotationStatus.DRAFT,
             clientId: clientId,
             clientDetails: updatedClients.find(c => c.id === clientId),
             items: parsedData.items && parsedData.items.length > 0 ? parsedData.items.map((item: any, index: number) => ({
@@ -440,12 +440,12 @@ const App: React.FC = () => {
             })) : undefined,
             placeOfSupply: parsedData.placeOfSupply || `${userProfile.address.state} (${userProfile.address.stateCode})`,
             bankDetails: userProfile.bankAccounts[0],
-            terms: parsedData.termsAndConditions || userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.'
+            terms: parsedData.termsAndConditions || userProfile.defaultQuotationTerms || 'Valid for 30 days.'
           };
 
           let existing;
           if (parsedNumber) {
-            existing = invoices.find(inv => 
+            existing = quotations.find(inv => 
               inv.number.toLowerCase() === parsedNumber.toLowerCase() && 
               inv.clientId === clientId
             );
@@ -459,15 +459,15 @@ const App: React.FC = () => {
         } else {
           console.warn(`Could not extract details from file: ${file.name}`);
           conflicting.push({ 
-            parsed: { id: `err-${Date.now()}`, number: `Error: ${file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
-            existing: { id: `msg-${Date.now()}`, number: `Extraction Failed: ${parseResult?.error || 'Unknown error'}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
+            parsed: { id: `err-${Date.now()}`, number: `Error: ${file.name}`, date: '', validUntil: '', status: QuotationStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Quotation, 
+            existing: { id: `msg-${Date.now()}`, number: `Extraction Failed: ${parseResult?.error || 'Unknown error'}`, date: '', validUntil: '', status: QuotationStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Quotation
           });
         }
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
         conflicting.push({ 
-            parsed: { id: `err-${Date.now()}`, number: `Error: ${file.name}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice, 
-            existing: { id: `msg-${Date.now()}`, number: `Processing Error: ${(error as any)?.message || error}`, date: '', status: InvoiceStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Invoice
+            parsed: { id: `err-${Date.now()}`, number: `Error: ${file.name}`, date: '', validUntil: '', status: QuotationStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Quotation, 
+            existing: { id: `msg-${Date.now()}`, number: `Processing Error: ${(error as any)?.message || error}`, date: '', validUntil: '', status: QuotationStatus.DRAFT, clientId: '', items: [], placeOfSupply: '', bankDetails: userProfile.bankAccounts[0] } as Quotation
         });
       }
     }
@@ -483,7 +483,7 @@ const App: React.FC = () => {
     }
   };
 
-  const finalizeUpload = (invoicesToApply: Invoice[], newClients: Client[], filesCount: number, hasClientsChanged: boolean) => {
+  const finalizeUpload = (invoicesToApply: Quotation[], newClients: Client[], filesCount: number, hasClientsChanged: boolean) => {
     if (invoicesToApply.length === 0 && filesCount > 0) {
       setIsUploadingBill(false);
       setUploadProgress(null);
@@ -492,7 +492,7 @@ const App: React.FC = () => {
       return;
     }
 
-    let finalInvoices = [...invoices];
+    let finalInvoices = [...quotations];
     
     invoicesToApply.forEach(inv => {
       const index = finalInvoices.findIndex(existing => existing.id === inv.id);
@@ -509,11 +509,11 @@ const App: React.FC = () => {
     }
 
     if (filesCount === 1 && invoicesToApply.length === 1) {
-      setEditingInvoice(invoicesToApply[0]);
+      setEditingQuotation(invoicesToApply[0]);
     } else if (invoicesToApply.length > 0) {
-      setInvoices(finalInvoices);
-      StorageService.save(STORAGE_KEYS.INVOICES, finalInvoices);
-      alert(`Successfully processed and saved ${invoicesToApply.length} invoices!`);
+      setQuotations(finalInvoices);
+      StorageService.save(STORAGE_KEYS.QUOTATIONS, finalInvoices);
+      alert(`Successfully processed and saved ${invoicesToApply.length} quotations!`);
     }
 
     setIsUploadingBill(false);
@@ -640,26 +640,6 @@ const App: React.FC = () => {
                   )}
                   {isReconciling ? 'Checking Bank...' : 'Reconcile'}
                 </button>
-                <input 
-                  type="file" 
-                  accept="image/*,application/pdf" 
-                  className="hidden" 
-                  ref={fileInputRef} 
-                  onChange={handleUploadBill} 
-                  multiple
-                />
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploadingBill}
-                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-5 py-3 rounded-xl hover:bg-gray-50 transition font-bold shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isUploadingBill ? (
-                    <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                  )}
-                  {isUploadingBill ? (uploadProgress ? `Processing ${uploadProgress.current}/${uploadProgress.total}...` : 'Processing...') : 'Upload Bill(s)'}
-                </button>
                 <button 
                   onClick={() => setIsExportModalOpen(true)}
                   className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-5 py-3 rounded-xl hover:bg-gray-50 transition font-bold shadow-sm flex items-center justify-center gap-2"
@@ -727,8 +707,29 @@ const App: React.FC = () => {
                 <h1 className="text-xl md:text-2xl font-bold">Quotations</h1>
                 <p className="text-xs md:text-sm text-gray-500">Estimates for {userProfile.companyName}</p>
               </div>
-              <button 
-                onClick={() => {
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <input 
+                  type="file" 
+                  accept="image/*,application/pdf" 
+                  className="hidden" 
+                  ref={fileInputRef} 
+                  onChange={handleUploadBill} 
+                  multiple
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingBill}
+                  className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-5 py-3 rounded-xl hover:bg-gray-50 transition font-bold shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isUploadingBill ? (
+                    <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                  )}
+                  {isUploadingBill ? (uploadProgress ? `Processing ${uploadProgress.current}/${uploadProgress.total}...` : 'Processing...') : 'Upload Bill(s)'}
+                </button>
+                <button 
+                  onClick={() => {
                   let newNumber = `QT${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
                   if (userProfile.quotationSequence) {
                     const seq = userProfile.quotationSequence;
@@ -753,6 +754,7 @@ const App: React.FC = () => {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                 New Quotation
               </button>
+            </div>
             </div>
             <QuotationList quotations={quotations} clients={clients} userProfile={userProfile} onEdit={setEditingQuotation} onDuplicate={(qt) => setQuotations([{...qt, id: `qt-${Date.now()}`, number: `COPY-${qt.number}`}, ...quotations])} onUpdateStatus={(id, status) => setQuotations(prev => prev.map(q => q.id === id ? {...q, status} : q))} onDelete={(id) => setQuotations(prev => prev.filter(q => q.id !== id))} onConvertToInvoice={handleConvertToInvoice} />
           </div>
@@ -884,7 +886,7 @@ const App: React.FC = () => {
                 <table className="w-full text-left text-sm">
                   <thead className="bg-gray-50 text-gray-500 font-bold sticky top-0 border-b shadow-sm">
                     <tr>
-                      <th className="p-3">File / Invoice #</th>
+                      <th className="p-3">File / Quotation #</th>
                       <th className="p-3">Client</th>
                       <th className="p-3">Issue Detected</th>
                       <th className="p-3 text-right">Action</th>
