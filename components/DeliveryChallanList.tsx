@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DeliveryChallan, Client, DeliveryChallanStatus, UserBusinessProfile } from '../types';
 import { DocumentTemplate } from './DocumentTemplate';
+import { DocumentPreviewModal } from './DocumentPreviewModal';
 
 // Declare html2pdf for TypeScript
 declare var html2pdf: any;
@@ -27,8 +28,8 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [activeStatusMenuId, setActiveStatusMenuId] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const [shareData, setShareData] = useState<{ doc: DeliveryChallan, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' } | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<DeliveryChallan | null>(null);
 
   const getClient = (id: string, doc?: DeliveryChallan) => {
     if (doc && doc.clientDetails) return doc.clientDetails;
@@ -288,6 +289,13 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
               style={{ top: `${menuPosition.top}px`, right: `${menuPosition.right}px` }}
           >
               <button 
+                onClick={() => { setPreviewDoc(activeChallan); setActiveMenuId(null); }} 
+                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+              >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                  Preview
+              </button>
+              <button 
                 onClick={() => { onDuplicate(activeChallan); setActiveMenuId(null); }} 
                 className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
               >
@@ -298,8 +306,8 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
                 onClick={() => { onEdit(activeChallan); setActiveMenuId(null); }} 
                 className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
               >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                  View / Print
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                  Edit
               </button>
               <button 
                 onClick={() => handleShare(activeChallan, 'download')} 
@@ -341,6 +349,18 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
                 <DocumentTemplate document={shareData.doc} userProfile={userProfile} client={shareData.client} mode="delivery-challan" />
              </div>
           </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {previewDoc && (
+          <DocumentPreviewModal
+              isOpen={!!previewDoc}
+              onClose={() => setPreviewDoc(null)}
+              document={previewDoc}
+              client={getClient(previewDoc.clientId, previewDoc) || {} as Client}
+              userProfile={userProfile}
+              mode="delivery-challan"
+          />
       )}
     </div>
   );
