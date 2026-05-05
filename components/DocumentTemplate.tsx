@@ -66,7 +66,7 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
   const hideAmounts = isDeliveryChallan && (document as DeliveryChallan).showAmountDetails === false;
 
   return (
-    <div className="bg-white text-black font-sans w-[184.6mm] mx-auto">
+    <div className="bg-white text-black font-sans w-[184.6mm] mx-auto px-8 py-10 border border-transparent">
         {/* Header */}
         <div className="flex justify-between items-start mb-6">
             <div className="flex flex-col gap-1">
