@@ -179,11 +179,6 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
           setActiveMenuId(null);
           return;
       }
-      const rect = e.currentTarget.getBoundingClientRect();
-      setMenuPosition({
-          top: rect.bottom + 5,
-          right: window.innerWidth - rect.right
-      });
       setActiveMenuId(id);
   };
 
@@ -252,7 +247,7 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-1">
+                      <div className="flex justify-end gap-1 relative">
                         <button 
                           onClick={() => setPreviewDoc(challan)}
                           className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition"
@@ -271,9 +266,69 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
                         <button 
                             className={`p-2.5 rounded-xl transition action-menu-trigger ${activeMenuId === challan.id ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:bg-gray-100'}`}
                             onClick={(e) => toggleMenu(e, challan.id)}
+                            data-menu-id={challan.id}
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
                         </button>
+
+                      {/* Inline floating menu */}
+                      {activeMenuId === challan.id && (
+                          <div 
+                              className="action-menu-container absolute right-0 top-[calc(100%+4px)] bg-white border border-gray-100 shadow-2xl rounded-2xl z-50 py-2 w-56 flex flex-col text-left overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+                          >
+                              <button 
+                                onClick={() => { setPreviewDoc(challan); setActiveMenuId(null); }} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                  Preview
+                              </button>
+                              <button 
+                                onClick={() => { onDuplicate(challan); setActiveMenuId(null); }} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                                  Duplicate
+                              </button>
+                              <button 
+                                onClick={() => { onEdit(challan); setActiveMenuId(null); }} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                  Edit
+                              </button>
+                              <button 
+                                onClick={() => handleShare(challan, 'download')} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                  Download PDF
+                              </button>
+                              <div className="h-px bg-gray-100 my-1 mx-2"></div>
+                              <button 
+                                onClick={() => handleShare(challan, 'whatsapp')} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-emerald-600 hover:bg-emerald-50 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.569 2.1c-.08.293.18.559.479.498l2.126-.432c.945.483 2.016.75 3.125.75 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.766-5.768-5.766zM15.42 14.512c-.157.443-.79.802-1.22.888-.344.068-.788.125-1.272-.034-1.127-.372-2.316-1.577-3.23-2.616-.27-.306-.5-.59-.684-.848-.382-.544-.65-1.157-.315-1.583.104-.131.296-.285.442-.387.112-.078.225-.131.309-.131.085 0 .17.001.24.004.073.003.15.006.216.143.085.18.29.702.315.754.025.05.04.109.008.173-.031.065-.07.106-.144.186l-.216.242c-.068.077-.14.16-.06.297.08.137.354.584.761.947.525.467.967.61 1.104.678.137.069.217.057.297-.034.08-.09.344-.403.435-.54.092-.137.183-.114.306-.068.123.046.779.367.914.435.134.068.223.102.257.16.034.058.034.336-.123.779zM12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8-8 8z" /></svg>
+                                  Share WhatsApp
+                              </button>
+                              <button 
+                                onClick={() => handleShare(challan, 'email')} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                  Share Email
+                              </button>
+                              <div className="h-px bg-gray-100 my-1 mx-2"></div>
+                              <button 
+                                onClick={() => { onDelete(challan.id); setActiveMenuId(null); }} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                  Delete Permanently
+                              </button>
+                          </div>
+                      )}
                       </div>
                     </td>
                   </tr>
@@ -288,66 +343,6 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
         </table>
       </div>
     </div>
-
-      {/* Floating Menu */}
-      {activeMenuId && activeChallan && menuPosition && (
-          <div 
-              className="action-menu-container fixed bg-white border border-gray-100 shadow-2xl rounded-2xl z-[9999] py-2 w-56 flex flex-col text-left overflow-hidden animate-in fade-in zoom-in-95 duration-100"
-              style={{ top: `${menuPosition.top}px`, right: `${menuPosition.right}px` }}
-          >
-              <button 
-                onClick={() => { setPreviewDoc(activeChallan); setActiveMenuId(null); }} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                  Preview
-              </button>
-              <button 
-                onClick={() => { onDuplicate(activeChallan); setActiveMenuId(null); }} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
-                  Duplicate
-              </button>
-              <button 
-                onClick={() => { onEdit(activeChallan); setActiveMenuId(null); }} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                  Edit
-              </button>
-              <button 
-                onClick={() => handleShare(activeChallan, 'download')} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                  Download PDF
-              </button>
-              <div className="h-px bg-gray-100 my-1 mx-2"></div>
-              <button 
-                onClick={() => handleShare(activeChallan, 'whatsapp')} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-emerald-600 hover:bg-emerald-50 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.569 2.1c-.08.293.18.559.479.498l2.126-.432c.945.483 2.016.75 3.125.75 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.766-5.768-5.766zM15.42 14.512c-.157.443-.79.802-1.22.888-.344.068-.788.125-1.272-.034-1.127-.372-2.316-1.577-3.23-2.616-.27-.306-.5-.59-.684-.848-.382-.544-.65-1.157-.315-1.583.104-.131.296-.285.442-.387.112-.078.225-.131.309-.131.085 0 .17.001.24.004.073.003.15.006.216.143.085.18.29.702.315.754.025.05.04.109.008.173-.031.065-.07.106-.144.186l-.216.242c-.068.077-.14.16-.06.297.08.137.354.584.761.947.525.467.967.61 1.104.678.137.069.217.057.297-.034.08-.09.344-.403.435-.54.092-.137.183-.114.306-.068.123.046.779.367.914.435.134.068.223.102.257.16.034.058.034.336-.123.779zM12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8-8 8z" /></svg>
-                  Share WhatsApp
-              </button>
-              <button 
-                onClick={() => handleShare(activeChallan, 'email')} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                  Share Email
-              </button>
-              <div className="h-px bg-gray-100 my-1 mx-2"></div>
-              <button 
-                onClick={() => { onDelete(activeChallan.id); setActiveMenuId(null); }} 
-                className="flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 font-bold transition"
-              >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  Delete Permanently
-              </button>
-          </div>
-      )}
 
       {/* Hidden container for PDF generation */}
       {shareData && (
