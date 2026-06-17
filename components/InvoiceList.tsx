@@ -32,6 +32,8 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   const [activeStatusMenuId, setActiveStatusMenuId] = useState<string | null>(null);
   const [shareData, setShareData] = useState<{ doc: Invoice, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' } | null>(null);
   const [previewDoc, setPreviewDoc] = useState<Invoice | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkShareData, setBulkShareData] = useState<{ docs: Invoice[], target: 'whatsapp' | 'email' | 'download' } | null>(null);
 
   // Filtering State
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -61,6 +63,26 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   const handleShare = (inv: Invoice, target: 'whatsapp' | 'email' | 'download') => {
     setShareData({ doc: inv, client: getClient(inv.clientId, inv), target });
     setActiveMenuId(null);
+  };
+
+  const handleBulkShare = (target: 'whatsapp' | 'email' | 'download') => {
+      const docsToShare = invoices.filter(inv => selectedIds.includes(inv.id));
+      if (docsToShare.length === 0) return;
+      setBulkShareData({ docs: docsToShare, target });
+      setActiveMenuId(null);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredInvoices.length && filteredInvoices.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredInvoices.map(inv => inv.id));
+    }
+  };
+
+  const toggleSelect = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
   // Effect to capture and share PDF when shareData is set
@@ -163,6 +185,91 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
         generateAndShare();
     }
   }, [shareData, userProfile]);
+
+  // Effect to capture and share bulk PDFs when bulkShareData is set
+  useEffect(() => {
+    if (bulkShareData && (window as any).html2pdf) {
+        const generateBulkAndShare = async () => {
+            try {
+                // Allow React to render all templates
+                await new Promise(r => setTimeout(r, 600));
+                
+                const files: File[] = [];
+
+                for (let i = 0; i < bulkShareData.docs.length; i++) {
+                    const doc = bulkShareData.docs[i];
+                    const element = document.getElementById(`share-template-bulk-${i}`);
+                    if (!element) continue;
+
+                    const opt = {
+                        margin: 12.7,
+                        filename: `Invoice-${doc.number}.pdf`,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+
+                    const pdfBlob = await (window as any).html2pdf().set(opt).from(element).outputPdf('blob');
+                    
+                    if (bulkShareData.target === 'download') {
+                        const url = URL.createObjectURL(pdfBlob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `Invoice-${doc.number}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        await new Promise(r => setTimeout(r, 300));
+                    } else {
+                        files.push(new File([pdfBlob], `Invoice-${doc.number}.pdf`, { type: 'application/pdf' }));
+                    }
+                }
+
+                if (bulkShareData.target !== 'download' && files.length > 0) {
+                    if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
+                        await navigator.share({
+                            files,
+                            title: `Multiple Invoices`,
+                            text: `Please find the attached invoices from ${userProfile.companyName}.`
+                        });
+                    } else {
+                        // Fallback: download them all and prompt user to attach manualy
+                        for (const f of files) {
+                            const url = URL.createObjectURL(f);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = f.name;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            await new Promise(r => setTimeout(r, 300));
+                        }
+                        
+                        if (bulkShareData.target === 'email') {
+                            // Can't reliably pass multiple recepients or generic emails
+                            const mailtoUrl = `mailto:?subject=${encodeURIComponent(`Invoices from ${userProfile.companyName}`)}&body=${encodeURIComponent(`Please find the attached invoices.`)}`;
+                            window.open(mailtoUrl, '_blank');
+                            alert("Multiple PDFs Downloaded. Please attach them to your email.");
+                        } else if (bulkShareData.target === 'whatsapp') {
+                            const waUrl = `https://wa.me/?text=${encodeURIComponent(`Please find the attached invoices from ${userProfile.companyName}.`)}`;
+                            window.open(waUrl, '_blank');
+                            alert("Multiple PDFs Downloaded. Please attach them to your WhatsApp message.");
+                        }
+                    }
+                }
+
+            } catch (e) {
+                console.error("Bulk PDF Share Error", e);
+                alert("Could not generate some PDFs. Please try again or use the print option.");
+            } finally {
+                setBulkShareData(null);
+                setSelectedIds([]);
+            }
+        };
+        
+        generateBulkAndShare();
+    }
+  }, [bulkShareData, userProfile]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -354,11 +461,39 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
         </div>
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex justify-between items-center animate-in fade-in slide-in-from-top-2">
+            <span className="text-indigo-800 font-bold text-sm px-3">{selectedIds.length} invoice(s) selected</span>
+            <div className="flex gap-2">
+                <button onClick={() => handleBulkShare('download')} className="px-3 py-1.5 bg-white text-gray-700 text-xs font-bold rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 flex items-center gap-2 transition">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    Download All
+                </button>
+                <button onClick={() => handleBulkShare('email')} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-blue-700 flex items-center gap-2 transition">
+                    <svg className="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    Email All
+                </button>
+                <button onClick={() => handleBulkShare('whatsapp')} className="px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-emerald-600 flex items-center gap-2 transition">
+                    <svg className="w-4 h-4 opacity-80" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.569 2.1c-.08.293.18.559.479.498l2.126-.432c.945.483 2.016.75 3.125.75 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.766-5.768-5.766zM15.42 14.512c-.157.443-.79.802-1.22.888-.344.068-.788.125-1.272-.034-1.127-.372-2.316-1.577-3.23-2.616-.27-.306-.5-.59-.684-.848-.382-.544-.65-1.157-.315-1.583.104-.131.296-.285.442-.387.112-.078.225-.131.309-.131.085 0 .17.001.24.004.073.003.15.006.216.143.085.18.29.702.315.754.025.05.04.109.008.173-.031.065-.07.106-.144.186l-.216.242c-.068.077-.14.16-.06.297.08.137.354.584.761.947.525.467.967.61 1.104.678.137.069.217.057.297-.034.08-.09.344-.403.435-.54.092-.137.183-.114.306-.068.123.046.779.367.914.435.134.068.223.102.257.16.034.058.034.336-.123.779zM12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8-8 8z" /></svg>
+                    WhatsApp All
+                </button>
+            </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left min-w-[800px]">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
+                <th className="px-6 py-4 w-12 text-center">
+                    <input 
+                       type="checkbox" 
+                       checked={selectedIds.length === filteredInvoices.length && filteredInvoices.length > 0} 
+                       onChange={toggleSelectAll}
+                       className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                    />
+                </th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Identity</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Issued</th>
@@ -373,7 +508,15 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                 const total = calculateDocumentTotal(inv);
                 
                 return (
-                  <tr key={inv.id} className="hover:bg-gray-50 transition">
+                  <tr key={inv.id} className={`hover:bg-gray-50 transition cursor-pointer ${selectedIds.includes(inv.id) ? 'bg-indigo-50/30' : ''}`} onClick={(e) => toggleSelect(e, inv.id)}>
+                  <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                    <input 
+                       type="checkbox" 
+                       checked={selectedIds.includes(inv.id)} 
+                       onChange={(e) => toggleSelect(e, inv.id)}
+                       className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                    />
+                  </td>
                   <td className="px-6 py-4 font-bold text-gray-900">{inv.number}</td>
                   <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(inv.clientId, inv)?.name || 'Unknown Client'}</td>
                   <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">{new Date(inv.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</td>
@@ -498,7 +641,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
             })}
             {filteredInvoices.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-20 text-center">
+                <td colSpan={7} className="px-6 py-20 text-center">
                   <div className="flex flex-col items-center gap-2 opacity-30">
                     <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     <p className="font-black text-xs uppercase tracking-widest text-gray-500">
@@ -514,11 +657,18 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
       </div>
 
       {/* Hidden container for PDF generation */}
-      {shareData && (
+      {(shareData || bulkShareData) && (
           <div className="fixed left-[-9999px] top-0">
-             <div id="share-template">
-                <DocumentTemplate document={shareData.doc} userProfile={userProfile} client={shareData.client} mode="invoice" />
-             </div>
+             {shareData && (
+                <div id="share-template">
+                    <DocumentTemplate document={shareData.doc} userProfile={userProfile} client={shareData.client} mode="invoice" />
+                </div>
+             )}
+             {bulkShareData && bulkShareData.docs.map((doc, i) => (
+                <div id={`share-template-bulk-${i}`} key={`bulk-${doc.id}`}>
+                    <DocumentTemplate document={doc} userProfile={userProfile} client={getClient(doc.clientId, doc)} mode="invoice" />
+                </div>
+             ))}
           </div>
       )}
 
