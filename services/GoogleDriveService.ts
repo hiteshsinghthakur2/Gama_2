@@ -92,20 +92,32 @@ export const uploadBackupToDrive = async (blob: Blob, filename: string) => {
     parents: [folderId]
   };
   
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.append('file', blob);
-
-  const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+  const createResMetadata = await fetch('https://www.googleapis.com/drive/v3/files', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
     },
-    body: form
+    body: JSON.stringify(metadata)
+  });
+
+  if (!createResMetadata.ok) {
+    throw new Error('Failed to create file metadata in Google Drive');
+  }
+  
+  const createdFile = await createResMetadata.json();
+
+  const uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${createdFile.id}?uploadType=media`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    },
+    body: blob
   });
 
   if (!uploadRes.ok) {
-    throw new Error('Failed to upload backup to Google Drive');
+    throw new Error('Failed to upload file content to Google Drive');
   }
   
   return await uploadRes.json();
