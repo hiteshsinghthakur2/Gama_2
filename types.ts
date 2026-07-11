@@ -165,6 +165,20 @@ export interface DeliveryChallan {
   showAmountDetails?: boolean;
 }
 
+export interface PurchaseInvoice {
+  id: string;
+  vendorName: string;
+  invoiceNumber: string;
+  date: string;
+  amount: number;
+  category?: string;
+  fileData?: string; // Data URL for the file (base64)
+  fileName?: string;
+  fileType?: string; // 'image/jpeg', 'application/pdf', etc.
+  notes?: string;
+  createdAt: string;
+}
+
 export enum LeadStatus {
   NEW = 'New',
   CONTACTED = 'Contacted',

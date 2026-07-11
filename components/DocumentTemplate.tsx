@@ -48,25 +48,26 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
     }, { taxable: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
 
     let discountAmount = 0;
-    if (document.discountValue) {
-      if (document.discountType === 'percentage') {
-        discountAmount = (itemTotals.taxable * document.discountValue) / 100;
+    const docWithDiscount = document as any;
+    if (docWithDiscount.discountValue) {
+      if (docWithDiscount.discountType === 'percentage') {
+        discountAmount = (itemTotals.taxable * docWithDiscount.discountValue) / 100;
       } else {
-        discountAmount = document.discountValue;
+        discountAmount = docWithDiscount.discountValue;
       }
     }
 
     const additionalChargesTotal = (document.additionalCharges || []).reduce((sum: number, charge: AdditionalCharge) => sum + (charge.amount || 0), 0);
     const preRoundTotal = itemTotals.total - discountAmount + additionalChargesTotal;
-    const finalTotal = preRoundTotal + (document.roundOff || 0);
+    const finalTotal = preRoundTotal + (docWithDiscount.roundOff || 0);
 
     return { ...itemTotals, discountAmount, additionalChargesTotal, finalTotal };
-  }, [document.items, isInterState, document.discountType, document.discountValue, document.additionalCharges, document.roundOff]);
+  }, [document.items, isInterState, (document as any).discountType, (document as any).discountValue, document.additionalCharges, (document as any).roundOff]);
 
   const hideAmounts = isDeliveryChallan && (document as DeliveryChallan).showAmountDetails === false;
 
   return (
-    <div className="bg-white text-black font-sans w-[184.6mm] mx-auto px-8 py-10 border border-transparent">
+    <div className="bg-white text-black font-sans w-[184.6mm] mx-auto px-8 py-2 border border-transparent">
         {/* Header */}
         <div className="flex justify-between items-start mb-6">
             <div className="flex flex-col gap-1">
@@ -80,10 +81,10 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
                     <span className="text-gray-500 font-medium">{isQuotation ? 'Date' : isDeliveryChallan ? 'Challan Date' : 'Invoice Date'}</span>
                     <span className="font-bold text-gray-900">{new Date(document.date).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
                     
-                    {document.dueDate && (
+                    {((document as any).dueDate || (document as any).validUntil) && (
                         <>
-                            <span className="text-gray-500 font-medium">{isQuotation ? 'Valid Till' : isDeliveryChallan ? 'Delivery Date' : 'Due Date'}</span>
-                            <span className="font-bold text-gray-900">{new Date(document.dueDate).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
+                            <span className="text-gray-500 font-medium">{isQuotation ? 'Valid Till' : 'Due Date'}</span>
+                            <span className="font-bold text-gray-900">{new Date((document as any).dueDate || (document as any).validUntil).toLocaleDateString('en-IN', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
                         </>
                     )}
                     
@@ -202,18 +203,18 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
         {/* Lower Section */}
         <div className="grid grid-cols-2 gap-8 mb-4 items-start">
             <div className="space-y-4">
-                {document.showBankDetails && (
+                {(document as any).showBankDetails && (
                 <div className="bg-gray-50 p-4 rounded border border-gray-100">
                     <h3 className="text-[#5c2c90] font-bold text-sm mb-3 border-b border-gray-200 pb-2">BANK DETAILS</h3>
                     <div className="grid grid-cols-[100px_1fr] gap-y-1 text-sm">
                         <span className="text-gray-500">Account Name</span>
-                        <span className="font-bold text-gray-900">{document.bankDetails?.accountName}</span>
-                        <span className="text-gray-500">Account No.</span>
-                        <span className="font-bold text-gray-900">{document.bankDetails?.accountNumber}</span>
+                        <span className="font-bold text-gray-900">{(document as any).bankDetails?.accountName}</span>
+                        <span className="text-gray-500">Account No</span>
+                        <span className="font-bold text-gray-900">{(document as any).bankDetails?.accountNumber}</span>
                         <span className="text-gray-500">IFSC Code</span>
-                        <span className="font-bold text-gray-900">{document.bankDetails?.ifscCode}</span>
+                        <span className="font-bold text-gray-900">{(document as any).bankDetails?.ifscCode}</span>
                         <span className="text-gray-500">Bank Name</span>
-                        <span className="font-bold text-gray-900">{document.bankDetails?.bankName}</span>
+                        <span className="font-bold text-gray-900">{(document as any).bankDetails?.bankName}</span>
                     </div>
                 </div>
                 )}
@@ -267,10 +268,10 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
                                 <span className="font-medium">- ₹{totals.discountAmount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                             </div>
                         )}
-                        {document.roundOff !== 0 && (
+                        {(document as any).roundOff !== 0 && (
                             <div className="flex justify-between text-gray-400 italic">
                                 <span>Round Off</span>
-                                <span>{document.roundOff > 0 ? '+' : ''} ₹{document.roundOff?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                                <span>{(document as any).roundOff > 0 ? '+' : ''} ₹{(document as any).roundOff?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                             </div>
                         )}
                     </div>

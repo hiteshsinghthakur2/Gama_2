@@ -149,7 +149,7 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
     }
   }, [shareData, userProfile]);
 
-  // Close menu when clicking outside or scrolling
+  // Close menu when clicking outside
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
       if (activeMenuId && !(e.target as Element).closest('.action-menu-container') && !(e.target as Element).closest('.action-menu-trigger')) {
@@ -159,17 +159,11 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
         setActiveStatusMenuId(null);
       }
     };
-    const handleScroll = () => {
-        if(activeMenuId) setActiveMenuId(null);
-        if(activeStatusMenuId) setActiveStatusMenuId(null);
-    };
 
     window.addEventListener('click', handleGlobalClick);
-    window.addEventListener('scroll', handleScroll, true);
     
     return () => {
         window.removeEventListener('click', handleGlobalClick);
-        window.removeEventListener('scroll', handleScroll, true);
     };
   }, [activeMenuId, activeStatusMenuId]);
 

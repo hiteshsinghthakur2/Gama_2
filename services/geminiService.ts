@@ -1,9 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getApiKey = () => {
+  const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) ? (import.meta as any).env : {};
   // Try Vite env first (Vercel/Browser)
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
-    return import.meta.env.VITE_GEMINI_API_KEY;
+  if (metaEnv && metaEnv.VITE_GEMINI_API_KEY) {
+    return metaEnv.VITE_GEMINI_API_KEY;
   }
   // Try process.env (AI Studio/Node)
   if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {

@@ -32,6 +32,8 @@ import { parseInvoiceFromImage, parseBankStatementFromImage } from './services/g
 import { calculateDocumentTotal } from './services/Calculations';
 import Tools from './components/Tools';
 
+import { PurchaseArchive } from './components/PurchaseArchive';
+
 const STORAGE_KEYS = {
   INVOICES: 'bos_cloud_invoices',
   QUOTATIONS: 'bos_cloud_quotations',
@@ -43,7 +45,7 @@ const STORAGE_KEYS = {
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'tools' | 'settings' | 'users' | 'my-profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'tools' | 'purchases' | 'settings' | 'users' | 'my-profile'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [syncState, setSyncState] = useState(StorageService.getSyncInfo());
@@ -814,6 +816,11 @@ const App: React.FC = () => {
         />
       );
       case 'tools': return <Tools invoices={invoices} clients={clients} userProfile={userProfile} />;
+      case 'purchases': return (
+        <div className="p-4 md:p-6 lg:p-8">
+          <PurchaseArchive />
+        </div>
+      );
       case 'settings': return <Settings profile={userProfile} onSave={setUserProfile} />;
       case 'users': return (
         <UserManagement 

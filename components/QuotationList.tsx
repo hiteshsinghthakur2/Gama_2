@@ -161,17 +161,11 @@ const QuotationList: React.FC<QuotationListProps> = ({
         setActiveStatusMenuId(null);
       }
     };
-    const handleScroll = () => {
-        if(activeMenuId) setActiveMenuId(null);
-        if(activeStatusMenuId) setActiveStatusMenuId(null);
-    };
 
     window.addEventListener('click', handleGlobalClick);
-    window.addEventListener('scroll', handleScroll, true);
     
     return () => {
         window.removeEventListener('click', handleGlobalClick);
-        window.removeEventListener('scroll', handleScroll, true);
     };
   }, [activeMenuId, activeStatusMenuId]);
 

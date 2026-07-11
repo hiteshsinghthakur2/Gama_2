@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Invoice, Client, InvoiceStatus, UserBusinessProfile } from '../types';
 import { formatCurrency, calculateDocumentTotal } from '../services/Calculations';
 import { DocumentTemplate } from './DocumentTemplate';
@@ -50,6 +50,19 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     return clients.find(c => c.id === id);
   };
 
+  // Get unique clients from both current clients and embedded invoice clients
+  const uniqueClients = useMemo(() => {
+    const clientMap = new Map<string, Client>();
+    clients.forEach(c => clientMap.set(c.id, c));
+    invoices.forEach(inv => {
+      const c = getClient(inv.clientId, inv);
+      if (c && !clientMap.has(c.id)) {
+        clientMap.set(c.id, c);
+      }
+    });
+    return Array.from(clientMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [clients, invoices]);
+
   const getStatusStyle = (status: InvoiceStatus) => {
     switch (status) {
       case InvoiceStatus.PAID: return 'bg-emerald-100 text-emerald-700';
@@ -72,6 +85,29 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
       setActiveMenuId(null);
   };
 
+  const isInvoiceOverdue = (inv: Invoice) => {
+    if (inv.status === InvoiceStatus.PAID) return false;
+    const dueDate = new Date(inv.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return dueDate < today || inv.status === InvoiceStatus.OVERDUE;
+  };
+
+  const handleSendReminder = (inv: Invoice) => {
+    const client = getClient(inv.clientId, inv);
+    if (!client || !client.email) {
+      alert("Client email is missing. Cannot send reminder.");
+      return;
+    }
+    const total = calculateDocumentTotal(inv);
+    const amount = formatCurrency(total);
+    const subject = encodeURIComponent(`Reminder: Invoice ${inv.number} is Overdue`);
+    const body = encodeURIComponent(`Dear ${client.name},\n\nThis is a friendly reminder that invoice ${inv.number} for ${amount} was due on ${new Date(inv.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.\n\nPlease let us know if you have any questions or if payment has already been made.\n\nThank you,\n${userProfile.companyName}`);
+    window.open(`mailto:${client.email}?subject=${subject}&body=${body}`, '_blank');
+    setActiveMenuId(null);
+  };
+
   const toggleSelectAll = () => {
     if (selectedIds.length === filteredInvoices.length && filteredInvoices.length > 0) {
       setSelectedIds([]);
@@ -80,7 +116,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     }
   };
 
-  const toggleSelect = (e: React.MouseEvent, id: string) => {
+  const toggleSelect = (e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent, id: string) => {
     e.stopPropagation();
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
@@ -314,7 +350,10 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     if (filterEndDate && new Date(inv.date) > new Date(filterEndDate)) return false;
 
     // Client Filter
-    if (filterClient && inv.clientId !== filterClient) return false;
+    if (filterClient) {
+        const client = getClient(inv.clientId, inv);
+        if (!client || client.id !== filterClient) return false;
+    }
 
     // Status Filter
     if (filterStatus && inv.status !== filterStatus) return false;
@@ -410,7 +449,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
             className="w-full sm:w-48 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
           >
             <option value="">All Clients</option>
-            {clients.map(client => (
+            {uniqueClients.map(client => (
               <option key={client.id} value={client.id}>{client.name}</option>
             ))}
           </select>
@@ -624,6 +663,15 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                   Share Email
                               </button>
+                              {isInvoiceOverdue(inv) && (
+                                <button 
+                                  onClick={() => handleSendReminder(inv)} 
+                                  className="flex items-center gap-3 px-4 py-3 text-sm text-amber-600 hover:bg-amber-50 font-bold transition border-t border-gray-50 mt-1"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    Send Reminder
+                                </button>
+                              )}
                               <div className="h-px bg-gray-100 my-1 mx-2"></div>
                               <button 
                                 onClick={() => { onDelete(inv.id); setActiveMenuId(null); }} 

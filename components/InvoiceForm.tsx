@@ -71,6 +71,7 @@ interface DocumentFormProps {
   onConvertToInvoice?: (quotation: Quotation) => void;
   existingInvoices?: Invoice[];
   onSaveClient?: (client: Client) => void;
+  onEditClient?: (client: Client) => void;
 }
 
 const InvoiceForm: React.FC<DocumentFormProps> = ({ 
@@ -309,7 +310,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
         }
     }
 
-    setDocument(prev => {
+    setDocument((prev: any) => {
         const newClientFields = client?.customFields || [];
         const existingFields = prev.customFields || [];
         
@@ -1367,7 +1368,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                       <p className="mt-2"><span className="font-bold">GSTIN:</span> <span className="text-[#5c2c90]">{selectedClient?.gstin || 'N/A'}</span></p>
                       <p><span className="font-bold">PAN:</span> {selectedClient?.pan || 'N/A'}</p>
                       {selectedClient?.phone && <p><span className="font-bold">Phone:</span> {selectedClient.phone}</p>}
-                      {selectedClient?.customFields?.map((field, i) => (
+                      {selectedClient?.customFields?.map((field: any, i: number) => (
                           <p key={i}><span className="font-bold">{field.label}:</span> {field.value}</p>
                       ))}
                   </div>

@@ -10,8 +10,9 @@ let syncStatus: 'idle' | 'syncing' | 'success' | 'error' = 'idle';
 export const getClient = () => {
   if (_supabase) return _supabase;
 
-  const url = import.meta.env.VITE_SUPABASE_URL || (typeof process !== 'undefined' && process.env.SUPABASE_URL) || (window as any).SUPABASE_URL;
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY || (typeof process !== 'undefined' && process.env.SUPABASE_ANON_KEY) || (window as any).SUPABASE_ANON_KEY;
+  const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) ? (import.meta as any).env : {};
+  const url = metaEnv.VITE_SUPABASE_URL || (typeof process !== 'undefined' && process.env.SUPABASE_URL) || (window as any).SUPABASE_URL;
+  const key = metaEnv.VITE_SUPABASE_ANON_KEY || (typeof process !== 'undefined' && process.env.SUPABASE_ANON_KEY) || (window as any).SUPABASE_ANON_KEY;
 
   if (url && key) {
     try {

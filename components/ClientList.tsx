@@ -245,11 +245,11 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
           gstin: gstin,
           pan: gstin.substring(2, 12),
           address: {
-            street: details.address || '',
-            city: '',
-            state: details.state || 'Delhi',
+            street: typeof details.address === 'string' ? details.address : (details.address?.street || ''),
+            city: typeof details.address === 'object' ? (details.address?.city || '') : '',
+            state: (typeof details.address === 'object' ? details.address?.state : null) || 'Delhi',
             stateCode: gstin.substring(0, 2),
-            pincode: '',
+            pincode: typeof details.address === 'object' ? (details.address?.pincode || '') : '',
             country: 'India'
           },
           customFields: []

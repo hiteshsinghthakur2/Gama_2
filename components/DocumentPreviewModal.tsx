@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { DocumentTemplate } from './DocumentTemplate';
-import { Client, AppUser, Invoice, Quotation, DeliveryChallan } from '../types';
+import { Client, AppUser, UserBusinessProfile, Invoice, Quotation, DeliveryChallan } from '../types';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -9,7 +9,7 @@ interface DocumentPreviewModalProps {
     onClose: () => void;
     document: Invoice | Quotation | DeliveryChallan;
     client: Client;
-    userProfile: AppUser;
+    userProfile: UserBusinessProfile;
     mode: 'invoice' | 'quotation' | 'delivery-challan';
 }
 
