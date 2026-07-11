@@ -209,12 +209,12 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSave, onDelete, acti
     if (!filterText.trim()) return clients;
     const lowerFilter = filterText.toLowerCase();
     return clients.filter(client => {
-      if (client.name.toLowerCase().includes(lowerFilter)) return true;
-      if (client.email.toLowerCase().includes(lowerFilter)) return true;
+      if (client.name && client.name.toLowerCase().includes(lowerFilter)) return true;
+      if (client.email && client.email.toLowerCase().includes(lowerFilter)) return true;
       if (client.phone && client.phone.toLowerCase().includes(lowerFilter)) return true;
       if (client.customFields && client.customFields.some(cf => 
-        cf.label.toLowerCase().includes(lowerFilter) || 
-        cf.value.toLowerCase().includes(lowerFilter)
+        (cf.label && cf.label.toLowerCase().includes(lowerFilter)) || 
+        (cf.value && cf.value.toLowerCase().includes(lowerFilter))
       )) return true;
       return false;
     });

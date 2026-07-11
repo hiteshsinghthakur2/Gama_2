@@ -31,8 +31,9 @@ import ExportInvoicesModal from './components/ExportInvoicesModal';
 import { parseInvoiceFromImage, parseBankStatementFromImage } from './services/geminiService';
 import { calculateDocumentTotal } from './services/Calculations';
 import Tools from './components/Tools';
-
 import { PurchaseArchive } from './components/PurchaseArchive';
+import { getAccessToken, uploadBackupToDrive } from './services/GoogleDriveService';
+import { generateMasterBackupBlob } from './services/BackupService';
 
 const STORAGE_KEYS = {
   INVOICES: 'bos_cloud_invoices',
@@ -52,6 +53,34 @@ const App: React.FC = () => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isUploadingBill, setIsUploadingBill] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{current: number, total: number} | null>(null);
+
+  // --- Auto Backup ---
+  useEffect(() => {
+    if (isLoading) return; // Wait until initial data is loaded
+    const checkAndRunDailyBackup = async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) return; // No token, no backup
+
+        const today = new Date().toISOString().split('T')[0];
+        const lastBackup = localStorage.getItem('bos_cloud_last_drive_backup_date');
+
+        if (lastBackup !== today) {
+          // It's a new day, run backup!
+          console.log("Running daily Google Drive Backup...");
+          const blob = generateMasterBackupBlob();
+          const filename = `CraftDaddy_Master_Backup_${today}.xlsx`;
+          await uploadBackupToDrive(blob, filename);
+          localStorage.setItem('bos_cloud_last_drive_backup_date', today);
+          console.log("Daily backup completed successfully!");
+        }
+      } catch (err) {
+        console.error("Failed daily backup:", err);
+      }
+    };
+    // Slight delay to not block the main render thread heavily at startup
+    setTimeout(checkAndRunDailyBackup, 5000);
+  }, [isLoading]);
 
   const [uploadConflicts, setUploadConflicts] = useState<{
     conflicting: { parsed: Quotation; existing: Quotation }[];
@@ -110,14 +139,36 @@ const App: React.FC = () => {
       // Migrate existing documents to have clientDetails permanently
       const migrateDocs = (docs: any[], clientsList: Client[]) => docs.map((d: any) => d.clientDetails ? d : { ...d, clientDetails: clientsList.find(c => c.id === d.clientId) || null });
       
-      setInvoices(migrateDocs(i, c) as Invoice[]);
-      setQuotations(migrateDocs(q, c) as Quotation[]);
-      setDeliveryChallans(migrateDocs(dc, c) as DeliveryChallan[]);
+      let loadedClients = [...(c || [])];
+      
+      const recoveredMap = new Map<string, Client>();
+      loadedClients.forEach(client => recoveredMap.set(client.id, client));
+
+      const extract = (docs: any[]) => {
+          docs.forEach(doc => {
+              if (doc.clientDetails && !recoveredMap.has(doc.clientDetails.id)) {
+                  recoveredMap.set(doc.clientDetails.id, doc.clientDetails);
+              }
+          });
+      };
+      
+      extract(i);
+      extract(q);
+      extract(dc);
+
+      if (recoveredMap.size > loadedClients.length) {
+          loadedClients = Array.from(recoveredMap.values());
+          StorageService.save(STORAGE_KEYS.CLIENTS, loadedClients);
+      }
+
+      setInvoices(migrateDocs(i, loadedClients) as Invoice[]);
+      setQuotations(migrateDocs(q, loadedClients) as Quotation[]);
+      setDeliveryChallans(migrateDocs(dc, loadedClients) as DeliveryChallan[]);
       setLeads(l.length ? l : [
         { id: 'lead-1', name: 'John Doe', company: 'Nexus Inc', value: 50000, status: LeadStatus.NEW, createdAt: '2024-05-15' },
         { id: 'lead-2', name: 'Jane Smith', company: 'Global SCM', value: 120000, status: LeadStatus.PROPOSAL, createdAt: '2024-05-14' },
       ]);
-      setClients(c.length ? c : [
+      setClients(loadedClients.length ? loadedClients : [
         { 
           id: 'client-1', 
           name: 'Nexus Inc', 

@@ -4,6 +4,8 @@ import { UserBusinessProfile, Address } from '../types';
 import { INDIAN_STATES } from '../constants';
 import { StorageService } from '../services/StorageService';
 import * as XLSX from 'xlsx';
+import { initAuth, googleSignIn, logout, getAccessToken, uploadBackupToDrive } from '../services/GoogleDriveService';
+import { generateMasterBackupBlob } from '../services/BackupService';
 
 interface SettingsProps {
   profile: UserBusinessProfile;
@@ -23,9 +25,65 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
   const [backupData, setBackupData] = useState<Record<string, string> | null>(null);
   const [selectedRestoreKeys, setSelectedRestoreKeys] = useState<string[]>([]);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreMode, setRestoreMode] = useState<'merge' | 'overwrite'>('merge');
 
   const [webhookSyncStatus, setWebhookSyncStatus] = useState<string>(localStorage.getItem('bos_cloud_webhook_sync_status') || 'idle');
   const [webhookLastSync, setWebhookLastSync] = useState<string>(localStorage.getItem('bos_cloud_webhook_last_sync') || '');
+
+  const [needsAuth, setNeedsAuth] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isDriveBackingUp, setIsDriveBackingUp] = useState(false);
+  const [driveUser, setDriveUser] = useState<any>(null);
+
+  useEffect(() => {
+    const unsubscribe = initAuth(
+      (user, token) => {
+        setNeedsAuth(false);
+        setDriveUser(user);
+      },
+      () => {
+        setNeedsAuth(true);
+        setDriveUser(null);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      const result = await googleSignIn();
+      if (result) {
+        setNeedsAuth(false);
+        setDriveUser(result.user);
+      }
+    } catch (err) {
+      console.error('Login failed:', err);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleDriveBackup = async () => {
+    try {
+      setIsDriveBackingUp(true);
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+      const filename = `CraftDaddy_Master_Backup_${timestamp}.xlsx`;
+      
+      const blob = generateMasterBackupBlob();
+
+      await uploadBackupToDrive(blob, filename);
+      localStorage.setItem('bos_cloud_last_drive_backup_date', new Date().toISOString().split('T')[0]);
+      alert('Backup successfully uploaded to Google Drive!');
+    } catch (err) {
+      console.error('Drive backup failed:', err);
+      alert('Failed to backup to Google Drive. Please try logging in again.');
+      setNeedsAuth(true);
+    } finally {
+      setIsDriveBackingUp(false);
+    }
+  };
 
   useEffect(() => {
     const handleWebhookUpdate = () => {
@@ -743,6 +801,64 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                 </button>
               </div>
             </div>
+
+            <div className="pt-6 border-t border-gray-100 space-y-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                    Google Drive Auto-Backup
+                    {isDriveBackingUp && <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Backing up...</span>}
+                  </p>
+                  <p className="text-xs text-gray-500 max-w-xl mt-1">
+                    Securely connect to your Google Workspace via OAuth and manually push or schedule automatic .xlsx backups to a dedicated folder in your Google Drive.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3 items-center">
+                {needsAuth || !driveUser ? (
+                  <button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    disabled={isLoggingIn}
+                    className="px-4 py-2 border border-gray-300 rounded-xl font-bold hover:bg-gray-50 transition flex items-center justify-center gap-2 text-sm bg-white"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 48 48">
+                      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                      <path fill="none" d="M0 0h48v48H0z"></path>
+                    </svg>
+                    {isLoggingIn ? 'Connecting...' : 'Sign in with Google'}
+                  </button>
+                ) : (
+                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+                    <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-2 rounded-xl text-sm font-medium border border-green-100 flex-1 w-full sm:w-auto">
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                      Connected as {driveUser.email || 'Google User'}
+                    </div>
+                    <div className="flex gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={handleDriveBackup}
+                        disabled={isDriveBackingUp}
+                        className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                        {isDriveBackingUp ? 'Backing Up...' : 'Backup Now'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { logout(); setNeedsAuth(true); setDriveUser(null); }}
+                        className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
             <div className="pt-6 border-t border-gray-100 space-y-4">
@@ -858,8 +974,39 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
             <h3 className="text-xl font-bold text-gray-900 mb-2">Preview & Restore Backup</h3>
-            <p className="text-sm text-gray-500 mb-6">Select the data categories you want to restore. This will overwrite your current data for the selected categories.</p>
+            <p className="text-sm text-gray-500 mb-4">Select the data categories you want to restore.</p>
             
+            <div className="flex gap-4 mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
+              <label className="flex items-start gap-2 cursor-pointer flex-1">
+                <input 
+                  type="radio" 
+                  name="restoreMode" 
+                  value="merge" 
+                  checked={restoreMode === 'merge'} 
+                  onChange={() => setRestoreMode('merge')}
+                  className="mt-1 text-indigo-600 focus:ring-indigo-500"
+                />
+                <div>
+                  <span className="block font-bold text-sm text-gray-900">Merge Data</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">Keeps your existing current data and adds only missing records from the backup.</span>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer flex-1">
+                <input 
+                  type="radio" 
+                  name="restoreMode" 
+                  value="overwrite" 
+                  checked={restoreMode === 'overwrite'} 
+                  onChange={() => setRestoreMode('overwrite')}
+                  className="mt-1 text-red-600 focus:ring-red-500"
+                />
+                <div>
+                  <span className="block font-bold text-sm text-gray-900">Overwrite</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">Completely replaces existing data with the backup.</span>
+                </div>
+              </label>
+            </div>
+
             <div className="space-y-3 max-h-[40vh] overflow-y-auto mb-6 pr-2 custom-scrollbar">
               {Object.keys(backupData).filter(k => k.startsWith('bos_cloud_')).map(key => {
                 const isSelected = selectedRestoreKeys.includes(key);
@@ -923,7 +1070,28 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                     if (raw) {
                       try {
                         const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-                        const dataToSave = parsed.data !== undefined ? parsed.data : parsed;
+                        let dataToSave = parsed.data !== undefined ? parsed.data : parsed;
+                        
+                        if (restoreMode === 'merge' && Array.isArray(dataToSave)) {
+                          const currentDataStr = localStorage.getItem(key);
+                          if (currentDataStr) {
+                             const currentParsed = JSON.parse(currentDataStr);
+                             const currentArr = currentParsed.data !== undefined ? currentParsed.data : currentParsed;
+                             if (Array.isArray(currentArr)) {
+                                 const mergedMap = new Map();
+                                 // Add backup items first
+                                 dataToSave.forEach(item => {
+                                    if (item && item.id) mergedMap.set(item.id, item);
+                                 });
+                                 // Overwrite/Keep existing current items
+                                 currentArr.forEach(item => {
+                                    if (item && item.id) mergedMap.set(item.id, item);
+                                 });
+                                 dataToSave = Array.from(mergedMap.values());
+                             }
+                          }
+                        }
+
                         // Use StorageService.save to ensure it gets a new timestamp and syncs to cloud
                         await StorageService.save(key, dataToSave);
                         restoredCount++;

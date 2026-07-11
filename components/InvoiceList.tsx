@@ -60,7 +60,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
         clientMap.set(c.id, c);
       }
     });
-    return Array.from(clientMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(clientMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [clients, invoices]);
 
   const getStatusStyle = (status: InvoiceStatus) => {
@@ -85,13 +85,8 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
       setActiveMenuId(null);
   };
 
-  const isInvoiceOverdue = (inv: Invoice) => {
-    if (inv.status === InvoiceStatus.PAID) return false;
-    const dueDate = new Date(inv.dueDate);
-    dueDate.setHours(0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return dueDate < today || inv.status === InvoiceStatus.OVERDUE;
+  const canSendReminder = (inv: Invoice) => {
+    return inv.status !== InvoiceStatus.PAID;
   };
 
   const handleSendReminder = (inv: Invoice) => {
@@ -663,7 +658,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                   Share Email
                               </button>
-                              {isInvoiceOverdue(inv) && (
+                              {canSendReminder(inv) && (
                                 <button 
                                   onClick={() => handleSendReminder(inv)} 
                                   className="flex items-center gap-3 px-4 py-3 text-sm text-amber-600 hover:bg-amber-50 font-bold transition border-t border-gray-50 mt-1"
