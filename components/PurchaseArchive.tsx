@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PurchaseInvoice } from '../types';
 import { PurchaseStorageService } from '../services/PurchaseStorageService';
+import { parseInvoiceFromImage } from '../services/geminiService';
 
 export const PurchaseArchive: React.FC = () => {
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
@@ -19,6 +20,7 @@ export const PurchaseArchive: React.FC = () => {
   const [fileData, setFileData] = useState<string | undefined>(undefined);
   const [fileName, setFileName] = useState<string | undefined>(undefined);
   const [fileType, setFileType] = useState<string | undefined>(undefined);
+  const [isParsing, setIsParsing] = useState(false);
 
   useEffect(() => {
     loadInvoices();
@@ -46,8 +48,37 @@ export const PurchaseArchive: React.FC = () => {
     setFileType(file.type);
 
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setFileData(event.target?.result as string);
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      setFileData(base64);
+
+      try {
+        setIsParsing(true);
+        const parseResult = await parseInvoiceFromImage(base64, file.type);
+        if (parseResult.success && parseResult.data) {
+          const { data } = parseResult;
+          if (data.vendorName) setVendorName(data.vendorName);
+          if (data.invoiceNumber) setInvoiceNumber(data.invoiceNumber);
+          if (data.date) {
+            // Ensure date format is YYYY-MM-DD
+            try {
+              const parsedDate = new Date(data.date);
+              if (!isNaN(parsedDate.getTime())) {
+                setDate(parsedDate.toISOString().split('T')[0]);
+              }
+            } catch (e) {
+              console.warn('Could not parse date', data.date);
+            }
+          }
+          if (data.totalAmount || data.amount) setAmount(data.totalAmount?.toString() || data.amount?.toString() || '');
+        } else {
+          console.warn("Could not parse invoice details automatically.");
+        }
+      } catch (err) {
+        console.error("Error parsing invoice", err);
+      } finally {
+        setIsParsing(false);
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -301,7 +332,14 @@ export const PurchaseArchive: React.FC = () => {
                             </div>
                             <div>
                                 <p className="font-bold text-sm text-gray-900 truncate max-w-[200px] sm:max-w-xs">{fileName}</p>
-                                <p className="text-xs text-gray-500 font-medium">Ready to upload</p>
+                                <p className="text-xs text-gray-500 font-medium">
+                                  {isParsing ? (
+                                    <span className="flex items-center gap-1 text-indigo-600 animate-pulse">
+                                      <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                      Extracting details...
+                                    </span>
+                                  ) : 'Ready to upload'}
+                                </p>
                             </div>
                         </div>
                         <button 

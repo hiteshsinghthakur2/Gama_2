@@ -95,7 +95,7 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
       
       const blob = generateMasterBackupBlob();
 
-      await sendBackupEmail(blob, filename, formData.email || driveUser?.email);
+      await sendBackupEmail(blob, filename, driveUser?.email || '');
       alert('Backup successfully emailed!');
     } catch (err) {
       console.error('Email backup failed:', err);
