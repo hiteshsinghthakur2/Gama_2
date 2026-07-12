@@ -4,7 +4,7 @@ import { UserBusinessProfile, Address } from '../types';
 import { INDIAN_STATES } from '../constants';
 import { StorageService } from '../services/StorageService';
 import * as XLSX from 'xlsx';
-import { initAuth, googleSignIn, logout, getAccessToken, uploadBackupToDrive } from '../services/GoogleDriveService';
+import { initAuth, googleSignIn, logout, getAccessToken, uploadBackupToDrive, sendBackupEmail } from '../services/GoogleDriveService';
 import { generateMasterBackupBlob } from '../services/BackupService';
 
 interface SettingsProps {
@@ -33,6 +33,7 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
   const [needsAuth, setNeedsAuth] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isDriveBackingUp, setIsDriveBackingUp] = useState(false);
+  const [isEmailingBackup, setIsEmailingBackup] = useState(false);
   const [driveUser, setDriveUser] = useState<any>(null);
 
   useEffect(() => {
@@ -82,6 +83,26 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
       setNeedsAuth(true);
     } finally {
       setIsDriveBackingUp(false);
+    }
+  };
+
+  const handleEmailBackup = async () => {
+    try {
+      setIsEmailingBackup(true);
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+      const filename = `CraftDaddy_Master_Backup_${timestamp}.xlsx`;
+      
+      const blob = generateMasterBackupBlob();
+
+      await sendBackupEmail(blob, filename, formData.email || driveUser?.email);
+      alert('Backup successfully emailed!');
+    } catch (err) {
+      console.error('Email backup failed:', err);
+      alert('Failed to email backup. Please try logging in again and verify your email settings.');
+      setNeedsAuth(true);
+    } finally {
+      setIsEmailingBackup(false);
     }
   };
 
@@ -806,11 +827,12 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                    Google Drive Auto-Backup
+                    Google Drive & Email Backup
                     {isDriveBackingUp && <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Backing up...</span>}
+                    {isEmailingBackup && <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Sending...</span>}
                   </p>
                   <p className="text-xs text-gray-500 max-w-xl mt-1">
-                    Securely connect to your Google Workspace via OAuth and manually push or schedule automatic .xlsx backups to a dedicated folder in your Google Drive.
+                    Securely connect to your Google Workspace to manually push backups to Google Drive or email the master .xlsx backup to your official email.
                   </p>
                 </div>
               </div>
@@ -845,7 +867,16 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
                         className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                        {isDriveBackingUp ? 'Backing Up...' : 'Backup Now'}
+                        {isDriveBackingUp ? 'Backing Up...' : 'Drive Backup'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleEmailBackup}
+                        disabled={isEmailingBackup}
+                        className="flex-1 sm:flex-none px-4 py-2 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                        {isEmailingBackup ? 'Sending...' : 'Email Backup'}
                       </button>
                       <button
                         type="button"

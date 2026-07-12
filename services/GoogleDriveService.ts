@@ -7,6 +7,7 @@ const auth = getAuth(app);
 
 const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/drive.file');
+provider.addScope('https://www.googleapis.com/auth/gmail.send');
 
 let isSigningIn = false;
 let cachedAccessToken: string | null = null;
@@ -121,4 +122,66 @@ export const uploadBackupToDrive = async (blob: Blob, filename: string) => {
   }
   
   return await uploadRes.json();
+};
+
+export const sendBackupEmail = async (blob: Blob, filename: string, userEmail: string) => {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not authenticated with Google');
+
+  const toBase64 = (file: Blob): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = error => reject(error);
+  });
+
+  const base64Data = await toBase64(blob);
+
+  const boundary = "craftdaddy_backup_boundary_" + new Date().getTime();
+  
+  const emailLines = [
+    `To: ${userEmail}`,
+    `Subject: CraftDaddy Master Backup - ${new Date().toLocaleDateString()}`,
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    '',
+    'Attached is your CraftDaddy master backup. You can use this file to restore your data in the application.',
+    '',
+    `--${boundary}`,
+    `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; name="${filename}"`,
+    `Content-Disposition: attachment; filename="${filename}"`,
+    'Content-Transfer-Encoding: base64',
+    '',
+    base64Data,
+    `--${boundary}--`
+  ];
+
+  const email = emailLines.join('\r\n');
+  
+  // base64url encode the email
+  const base64EncodedEmail = btoa(unescape(encodeURIComponent(email)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      raw: base64EncodedEmail
+    })
+  });
+
+  if (!res.ok) {
+    const errData = await res.json();
+    console.error("Failed to send email", errData);
+    throw new Error('Failed to send backup email');
+  }
+
+  return await res.json();
 };
