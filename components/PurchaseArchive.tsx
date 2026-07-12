@@ -9,6 +9,9 @@ export const PurchaseArchive: React.FC = () => {
   const [viewingInvoice, setViewingInvoice] = useState<PurchaseInvoice | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
+  const bulkFileInputRef = useRef<HTMLInputElement>(null);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
+  const [bulkUploadProgress, setBulkUploadProgress] = useState({ current: 0, total: 0 });
 
   // Form State
   const [vendorName, setVendorName] = useState('');
@@ -21,6 +24,14 @@ export const PurchaseArchive: React.FC = () => {
   const [fileName, setFileName] = useState<string | undefined>(undefined);
   const [fileType, setFileType] = useState<string | undefined>(undefined);
   const [isParsing, setIsParsing] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // Filter States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     loadInvoices();
@@ -85,6 +96,91 @@ export const PurchaseArchive: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleBulkFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const validFiles = files.filter(f => {
+      if (f.size > 10 * 1024 * 1024) {
+        alert(`File ${f.name} is too large. Skipping files over 10MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    setIsBulkUploading(true);
+    setBulkUploadProgress({ current: 0, total: validFiles.length });
+
+    let currentInvoices = await PurchaseStorageService.loadAll();
+
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
+
+      try {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        const rawBase64 = base64.split(',')[1];
+        const parseResult = await parsePurchaseInvoiceFromImage(rawBase64, file.type);
+
+        let vName = 'Unknown Vendor';
+        let invNum = '';
+        let vDate = new Date().toISOString().split('T')[0];
+        let vAmount = 0;
+        let vCategory = '';
+
+        if (parseResult.success && parseResult.data) {
+          const data = parseResult.data;
+          if (data.vendorName) vName = data.vendorName;
+          if (data.invoiceNumber) invNum = data.invoiceNumber;
+          if (data.category) vCategory = data.category;
+          if (data.totalAmount || data.amount) vAmount = parseFloat(data.totalAmount?.toString() || data.amount?.toString() || '0') || 0;
+          if (data.date) {
+            try {
+              const parsedDate = new Date(data.date);
+              if (!isNaN(parsedDate.getTime())) {
+                vDate = parsedDate.toISOString().split('T')[0];
+              }
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+
+        const newInvoice: PurchaseInvoice = {
+          id: `pi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          vendorName: vName,
+          invoiceNumber: invNum,
+          date: vDate,
+          amount: vAmount,
+          category: vCategory,
+          notes: 'Bulk uploaded via AI',
+          fileData: base64,
+          fileName: file.name,
+          fileType: file.type,
+          createdAt: new Date().toISOString()
+        };
+
+        currentInvoices = [newInvoice, ...currentInvoices];
+        await PurchaseStorageService.saveAll(currentInvoices);
+        setInvoices(currentInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      } catch (err) {
+        console.error('Failed to parse file ' + file.name, err);
+      }
+
+      setBulkUploadProgress({ current: i + 1, total: validFiles.length });
+    }
+
+    setIsBulkUploading(false);
+    if (bulkFileInputRef.current) bulkFileInputRef.current.value = '';
+  };
+
   const resetForm = () => {
     setVendorName('');
     setInvoiceNumber('');
@@ -143,6 +239,92 @@ export const PurchaseArchive: React.FC = () => {
     }
   };
 
+  const filteredInvoices = invoices.filter(inv => {
+    const matchesSearch = !searchTerm || inv.vendorName.toLowerCase().includes(searchTerm.toLowerCase()) || inv.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = !filterCategory || inv.category?.toLowerCase() === filterCategory.toLowerCase();
+    const matchesDateFrom = !filterDateFrom || new Date(inv.date) >= new Date(filterDateFrom);
+    const matchesDateTo = !filterDateTo || new Date(inv.date) <= new Date(filterDateTo);
+    return matchesSearch && matchesCategory && matchesDateFrom && matchesDateTo;
+  });
+
+  const allCategories = Array.from(new Set(invoices.map(i => i.category).filter(Boolean)));
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredInvoices.length && filteredInvoices.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredInvoices.map(inv => inv.id));
+    }
+  };
+
+  const toggleSelect = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(itemId => itemId !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  const handleDownload = (inv: PurchaseInvoice) => {
+    if (!inv.fileData) return;
+    const a = document.createElement('a');
+    a.href = inv.fileData;
+    a.download = inv.fileName || `invoice_${inv.invoiceNumber || inv.id}.${inv.fileType?.includes('pdf') ? 'pdf' : 'png'}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleBulkDownload = async () => {
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      
+      const targetInvoices = selectedIds.length > 0 ? filteredInvoices.filter(i => selectedIds.includes(i.id)) : filteredInvoices;
+      const invoicesWithFiles = targetInvoices.filter(i => i.fileData);
+      if (invoicesWithFiles.length === 0) {
+        alert("No files to download in the current view/selection.");
+        return;
+      }
+      
+      invoicesWithFiles.forEach(inv => {
+        const base64Data = inv.fileData!.split(',')[1];
+        const ext = inv.fileType?.includes('pdf') ? 'pdf' : (inv.fileType?.split('/')[1] || 'png');
+        const fileName = inv.fileName || `${inv.vendorName}_${inv.invoiceNumber || inv.id}.${ext}`;
+        zip.file(fileName, base64Data, { base64: true });
+      });
+      
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Purchase_Invoices_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Failed to bulk download", e);
+      alert("Failed to generate zip file.");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (confirm(`Are you sure you want to delete ${selectedIds.length} purchase invoices?`)) {
+      try {
+        for (const id of selectedIds) {
+          await PurchaseStorageService.delete(id);
+        }
+        setSelectedIds([]);
+        await loadInvoices();
+      } catch (e) {
+        console.error("Error bulk deleting", e);
+        alert("Failed to delete some or all selected invoices.");
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -150,14 +332,90 @@ export const PurchaseArchive: React.FC = () => {
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Purchase Archive</h1>
           <p className="text-sm text-gray-500 font-medium mt-1">Manage and store your incoming purchase bills</p>
         </div>
-        <button 
-          onClick={() => setIsAdding(true)}
-          className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition flex items-center gap-2 shadow-sm"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          Add Purchase
-        </button>
+        <div className="flex items-center gap-3">
+          <input
+            type="file"
+            accept="image/*,.pdf"
+            multiple
+            className="hidden"
+            ref={bulkFileInputRef}
+            onChange={handleBulkFileChange}
+          />
+          <button 
+            onClick={() => bulkFileInputRef.current?.click()}
+            className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition flex items-center gap-2 shadow-sm"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+            Bulk Upload
+          </button>
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition flex items-center gap-2 shadow-sm"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            Add Purchase
+          </button>
+        </div>
       </div>
+
+      {invoices.length > 0 && (
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-4 items-end">
+          <div className="flex-1 w-full relative">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Search</label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search vendor or invoice..."
+                className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </div>
+          </div>
+          <div className="w-full sm:w-48">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Category</label>
+            <select
+              className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition appearance-none"
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+            >
+              <option value="">All Categories</option>
+              {allCategories.map((cat, i) => (
+                <option key={i} value={cat as string}>{cat as string}</option>
+              ))}
+            </select>
+          </div>
+          <div className="w-full sm:w-36">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">From Date</label>
+            <input
+              type="date"
+              className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition"
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+            />
+          </div>
+          <div className="w-full sm:w-36">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">To Date</label>
+            <input
+              type="date"
+              className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition"
+              value={filterDateTo}
+              onChange={(e) => setFilterDateTo(e.target.value)}
+            />
+          </div>
+          {filteredInvoices.some(i => i.fileData) && (
+            <button
+              onClick={handleBulkDownload}
+              className="px-4 py-2 bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-sm font-bold hover:bg-gray-200 transition flex items-center gap-2 whitespace-nowrap"
+              title="Download all filtered attachments"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              Bulk DL
+            </button>
+          )}
+        </div>
+      )}
 
       {invoices.length === 0 && !isAdding ? (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
@@ -174,13 +432,37 @@ export const PurchaseArchive: React.FC = () => {
            </button>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left min-w-[800px]">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Vendor</th>
+        <div className="space-y-4">
+          {selectedIds.length > 0 && (
+            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex justify-between items-center animate-in fade-in slide-in-from-top-2">
+                <span className="text-indigo-800 font-bold text-sm px-3">{selectedIds.length} invoice(s) selected</span>
+                <div className="flex gap-2">
+                    <button onClick={handleBulkDownload} className="px-3 py-1.5 bg-white text-gray-700 text-xs font-bold rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 flex items-center gap-2 transition">
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        Download Selected
+                    </button>
+                    <button onClick={handleBulkDelete} className="px-3 py-1.5 bg-white text-red-600 text-xs font-bold rounded-lg shadow-sm border border-gray-200 hover:bg-red-50 flex items-center gap-2 transition">
+                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        Delete Selected
+                    </button>
+                </div>
+            </div>
+          )}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left min-w-[800px]">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-6 py-4 text-center w-12">
+                      <input 
+                         type="checkbox" 
+                         checked={selectedIds.length === filteredInvoices.length && filteredInvoices.length > 0} 
+                         onChange={toggleSelectAll}
+                         className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                      />
+                    </th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Vendor</th>
                   <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Inv #</th>
                   <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
                   <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Attachment</th>
@@ -188,21 +470,39 @@ export const PurchaseArchive: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {invoices.map(inv => (
-                  <tr key={inv.id} className="hover:bg-gray-50/50 transition">
+                {filteredInvoices.map(inv => (
+                  <tr key={inv.id} className={`hover:bg-gray-50/50 transition cursor-pointer ${selectedIds.includes(inv.id) ? 'bg-indigo-50/30' : ''}`} onClick={(e) => toggleSelect(e, inv.id)}>
+                    <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input 
+                         type="checkbox" 
+                         checked={selectedIds.includes(inv.id)} 
+                         onChange={(e) => toggleSelect(e as any, inv.id)}
+                         className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-6 py-4 text-sm font-bold text-gray-600">{new Date(inv.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short', year: 'numeric'})}</td>
                     <td className="px-6 py-4 font-bold text-gray-900">{inv.vendorName}</td>
                     <td className="px-6 py-4 text-sm text-gray-500 font-mono">{inv.invoiceNumber || '-'}</td>
                     <td className="px-6 py-4 text-right font-bold text-gray-900">₹{inv.amount.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
                     <td className="px-6 py-4 text-center">
                         {inv.fileData ? (
+                          <div className="flex items-center justify-center gap-2">
                             <button 
                                 onClick={() => setViewingInvoice(inv)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg hover:bg-indigo-100 transition"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                                View File
+                                View
                             </button>
+                            <button 
+                                onClick={() => handleDownload(inv)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-100 transition"
+                                title="Download"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                DL
+                            </button>
+                          </div>
                         ) : (
                             <span className="text-xs text-gray-400 font-medium">No File</span>
                         )}
@@ -220,6 +520,34 @@ export const PurchaseArchive: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+        </div>
+      )}
+
+      {/* Bulk Upload Progress Modal */}
+      {isBulkUploading && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 sm:p-8 animate-in zoom-in-95 duration-200 flex flex-col items-center text-center">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <h3 className="text-xl font-black text-gray-900 mb-2">Processing Bills</h3>
+            <p className="text-sm font-medium text-gray-500 mb-6">
+              Extracting details and saving purchases automatically...
+            </p>
+            <div className="w-full bg-gray-100 rounded-full h-3 mb-2 overflow-hidden">
+              <div 
+                className="bg-emerald-500 h-3 rounded-full transition-all duration-300" 
+                style={{ width: `${(bulkUploadProgress.current / bulkUploadProgress.total) * 100}%` }}
+              ></div>
+            </div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+              {bulkUploadProgress.current} / {bulkUploadProgress.total} Files
+            </p>
           </div>
         </div>
       )}
