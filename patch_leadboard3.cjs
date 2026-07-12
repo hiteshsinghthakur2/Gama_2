@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+const fs = require('fs');
+
+const content = `import React, { useState } from 'react';
 import { TrashStorageService } from '../services/TrashStorageService';
 import { Lead, LeadStatus } from '../types';
 import { formatCurrency } from '../services/Calculations';
@@ -31,7 +33,7 @@ const LeadBoard: React.FC<LeadBoardProps> = ({ leads, setLeads }) => {
   const handleAddLead = () => {
     if (newLead.name && newLead.company) {
       setLeads([...leads, {
-        id: `lead-${Date.now()}`,
+        id: \`lead-\${Date.now()}\`,
         name: newLead.name,
         company: newLead.company,
         status: newLead.status as LeadStatus,
@@ -96,7 +98,7 @@ const LeadBoard: React.FC<LeadBoardProps> = ({ leads, setLeads }) => {
           <div key={status} className="w-80 flex-shrink-0 flex flex-col h-full bg-gray-100/40 rounded-3xl p-4 border border-gray-100">
             <div className="flex justify-between items-center mb-6 px-2">
               <h3 className="font-black text-gray-700 flex items-center gap-2 uppercase text-xs tracking-widest">
-                 <span className={`w-2.5 h-2.5 rounded-full ${status === LeadStatus.WON ? 'bg-emerald-500' : 'bg-indigo-500'}`}></span>
+                 <span className={\`w-2.5 h-2.5 rounded-full \${status === LeadStatus.WON ? 'bg-emerald-500' : 'bg-indigo-500'}\`}></span>
                  {status}
               </h3>
               <span className="text-[10px] bg-white text-gray-400 px-3 py-1 rounded-full font-black shadow-sm border border-gray-50">
@@ -141,3 +143,5 @@ const LeadBoard: React.FC<LeadBoardProps> = ({ leads, setLeads }) => {
 };
 
 export default LeadBoard;
+`;
+fs.writeFileSync('components/LeadBoard.tsx', content);

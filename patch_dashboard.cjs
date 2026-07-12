@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+const fs = require('fs');
+
+const content = `import React, { useState, useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   Cell, PieChart, Pie 
@@ -12,24 +14,13 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ invoices, leads }) => {
-  const [timeFilter, setTimeFilter] = useState<'this_year' | 'financial_year' | 'all_time'>('financial_year');
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  // Financial Year in India: Apr 1 to Mar 31.
-  // Assessment Year is technically the year following FY, but users usually mean FY when they say AY in dashboards.
-  const isBeforeApril = now.getMonth() < 3;
-  const fyStartYear = isBeforeApril ? currentYear - 1 : currentYear;
-  const fyEndYear = fyStartYear + 1;
+  const [timeFilter, setTimeFilter] = useState<'this_year' | 'all_time'>('this_year');
+  const currentYear = new Date().getFullYear();
 
   const { totalRevenue, outstanding, chartData } = useMemo(() => {
     let targetInvoices = invoices;
     if (timeFilter === 'this_year') {
       targetInvoices = invoices.filter(inv => new Date(inv.date).getFullYear() === currentYear);
-    } else if (timeFilter === 'financial_year') {
-      targetInvoices = invoices.filter(inv => {
-        const d = new Date(inv.date);
-        return (d.getFullYear() === fyStartYear && d.getMonth() >= 3) || (d.getFullYear() === fyEndYear && d.getMonth() < 3);
-      });
     }
 
     const paid = targetInvoices.filter(inv => inv.status === InvoiceStatus.PAID);
@@ -49,26 +40,11 @@ const Dashboard: React.FC<DashboardProps> = ({ invoices, leads }) => {
            cd[d.getMonth()].sales += calculateDocumentTotal(inv);
         }
       });
-    } else if (timeFilter === 'financial_year') {
-      const fyMonths = [
-        { label: 'Apr', month: 3 }, { label: 'May', month: 4 }, { label: 'Jun', month: 5 },
-        { label: 'Jul', month: 6 }, { label: 'Aug', month: 7 }, { label: 'Sep', month: 8 },
-        { label: 'Oct', month: 9 }, { label: 'Nov', month: 10 }, { label: 'Dec', month: 11 },
-        { label: 'Jan', month: 0 }, { label: 'Feb', month: 1 }, { label: 'Mar', month: 2 }
-      ];
-      cd = fyMonths.map(m => ({ name: m.label, sales: 0 }));
-      paid.forEach(inv => {
-        const d = new Date(inv.date);
-        if ((d.getFullYear() === fyStartYear && d.getMonth() >= 3) || (d.getFullYear() === fyEndYear && d.getMonth() < 3)) {
-           const index = fyMonths.findIndex(m => m.month === d.getMonth());
-           if (index !== -1) cd[index].sales += calculateDocumentTotal(inv);
-        }
-      });
     } else {
       const groups: Record<string, number> = {};
       paid.forEach(inv => {
         const d = new Date(inv.date);
-        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
+        const key = \`\${d.getFullYear()}-\${String(d.getMonth()+1).padStart(2, '0')}\`;
         groups[key] = (groups[key] || 0) + calculateDocumentTotal(inv);
       });
       const sortedKeys = Object.keys(groups).sort();
@@ -92,11 +68,6 @@ const Dashboard: React.FC<DashboardProps> = ({ invoices, leads }) => {
      let targetLeads = leads;
      if (timeFilter === 'this_year') {
         targetLeads = leads.filter(l => new Date(l.createdAt).getFullYear() === currentYear);
-     } else if (timeFilter === 'financial_year') {
-        targetLeads = leads.filter(l => {
-          const d = new Date(l.createdAt);
-          return (d.getFullYear() === fyStartYear && d.getMonth() >= 3) || (d.getFullYear() === fyEndYear && d.getMonth() < 3);
-        });
      }
      return targetLeads.reduce((sum, l) => sum + l.value, 0);
   }, [leads, timeFilter]);
@@ -105,11 +76,6 @@ const Dashboard: React.FC<DashboardProps> = ({ invoices, leads }) => {
      let targetLeads = leads;
      if (timeFilter === 'this_year') {
         targetLeads = leads.filter(l => new Date(l.createdAt).getFullYear() === currentYear);
-     } else if (timeFilter === 'financial_year') {
-        targetLeads = leads.filter(l => {
-          const d = new Date(l.createdAt);
-          return (d.getFullYear() === fyStartYear && d.getMonth() >= 3) || (d.getFullYear() === fyEndYear && d.getMonth() < 3);
-        });
      }
      const data = [
         { name: 'New', value: targetLeads.filter(l => l.status === 'New').length },
@@ -133,8 +99,7 @@ const Dashboard: React.FC<DashboardProps> = ({ invoices, leads }) => {
           onChange={(e) => setTimeFilter(e.target.value as any)}
           className="bg-white border border-gray-200 text-gray-700 text-sm font-bold py-2 px-4 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
         >
-          <option value="financial_year">Financial Year ({fyStartYear}-{String(fyEndYear).slice(-2)})</option>
-          <option value="this_year">Calendar Year ({currentYear})</option>
+          <option value="this_year">This Year ({currentYear})</option>
           <option value="all_time">All Time</option>
         </select>
       </div>
@@ -176,7 +141,7 @@ const Dashboard: React.FC<DashboardProps> = ({ invoices, leads }) => {
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} tickFormatter={(val) => `₹${val >= 1000 ? (val/1000).toFixed(0) + 'k' : val}`} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} tickFormatter={(val) => \`₹\${val >= 1000 ? (val/1000).toFixed(0) + 'k' : val}\`} />
                 <Tooltip 
                   cursor={{fill: '#f8fafc'}}
                   contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
@@ -206,7 +171,7 @@ const Dashboard: React.FC<DashboardProps> = ({ invoices, leads }) => {
                   dataKey="value"
                 >
                   {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.name === 'No Leads' ? '#f1f5f9' : COLORS[index % COLORS.length]} />
+                    <Cell key={\`cell-\${index}\`} fill={entry.name === 'No Leads' ? '#f1f5f9' : COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip 
@@ -234,3 +199,6 @@ const Dashboard: React.FC<DashboardProps> = ({ invoices, leads }) => {
 };
 
 export default Dashboard;
+`;
+
+fs.writeFileSync('components/Dashboard.tsx', content);
