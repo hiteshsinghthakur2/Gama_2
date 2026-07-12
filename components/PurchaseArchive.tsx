@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PurchaseInvoice } from '../types';
 import { PurchaseStorageService } from '../services/PurchaseStorageService';
-import { parseInvoiceFromImage } from '../services/geminiService';
+import { parsePurchaseInvoiceFromImage } from '../services/geminiService';
 
 export const PurchaseArchive: React.FC = () => {
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
@@ -54,7 +54,8 @@ export const PurchaseArchive: React.FC = () => {
 
       try {
         setIsParsing(true);
-        const parseResult = await parseInvoiceFromImage(base64, file.type);
+        const rawBase64 = base64.split(',')[1];
+        const parseResult = await parsePurchaseInvoiceFromImage(rawBase64, file.type);
         if (parseResult.success && parseResult.data) {
           const { data } = parseResult;
           if (data.vendorName) setVendorName(data.vendorName);
@@ -71,6 +72,7 @@ export const PurchaseArchive: React.FC = () => {
             }
           }
           if (data.totalAmount || data.amount) setAmount(data.totalAmount?.toString() || data.amount?.toString() || '');
+          if (data.category) setCategory(data.category);
         } else {
           console.warn("Could not parse invoice details automatically.");
         }

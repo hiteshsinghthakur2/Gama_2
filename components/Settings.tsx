@@ -58,8 +58,13 @@ const Settings: React.FC<SettingsProps> = ({ profile, onSave }) => {
         setNeedsAuth(false);
         setDriveUser(result.user);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login failed:', err);
+      if (err?.code === 'auth/unauthorized-domain') {
+        alert("Error: This domain (" + window.location.hostname + ") is not authorized for Google Sign-In. \n\nPlease go to Firebase Console -> Authentication -> Settings -> Authorized domains, and add this domain to the list.");
+      } else if (err?.code !== 'auth/popup-closed-by-user') {
+        alert("Google Sign-In failed: " + (err?.message || "Unknown error"));
+      }
     } finally {
       setIsLoggingIn(false);
     }

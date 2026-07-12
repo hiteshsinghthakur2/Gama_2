@@ -320,3 +320,72 @@ export const suggestLineItemsFromPrompt = async (prompt: string) => {
     return [];
   }
 };
+export const parsePurchaseInvoiceFromImage = async (base64Data: string, mimeType: string, retries = 3, targetModel = 'gemini-3-flash-preview'): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const apiKey = getApiKey();
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === "") {
+      throw new Error("GEMINI_API_KEY is missing or empty in environment variables.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+
+    const imagePart = {
+      inlineData: {
+        mimeType: mimeType,
+        data: base64Data,
+      },
+    };
+
+    const textPart = {
+      text: "Extract purchase invoice details from this receipt/bill. Extract the Vendor Name (the store or company who issued the bill), invoice number, date, and the total amount paid/due. Categorize the purchase if possible (e.g. Office Supplies, Raw Materials, Software, Travel, etc.). Return strictly formatted JSON.",
+    };
+
+    const response = await ai.models.generateContent({
+      model: targetModel,
+      contents: { parts: [imagePart, textPart] },
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            vendorName: { type: Type.STRING, description: 'Vendor Name (Issuer of the bill/receipt)' },
+            invoiceNumber: { type: Type.STRING, description: 'Invoice or Receipt Number' },
+            date: { type: Type.STRING, description: 'Date of the invoice/receipt (YYYY-MM-DD)' },
+            totalAmount: { type: Type.NUMBER, description: 'Total amount' },
+            category: { type: Type.STRING, description: 'Suggested category for this expense' }
+          }
+        }
+      }
+    });
+
+    let text = response.text;
+    if (!text) throw new Error("No text returned by the AI.");
+    
+    text = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+    
+    return { success: true, data: JSON.parse(text) };
+  } catch (error: any) {
+    const errorMsg = error?.message || '';
+
+    if (errorMsg.includes('429') && targetModel === 'gemini-3-flash-preview' && retries > 0) {
+        console.warn(`Model ${targetModel} hit quota limit, falling back to gemini-3-flash-preview...`);
+        return parsePurchaseInvoiceFromImage(base64Data, mimeType, retries, 'gemini-3-flash-preview');
+    }
+
+    if ((errorMsg.includes('429') || errorMsg.includes('503') || errorMsg.includes('UNAVAILABLE') || errorMsg.includes('high demand') || errorMsg.includes('RESOURCE_EXHAUSTED')) && retries > 0) {
+      console.warn(`Rate limit or High Demand hit, retrying parsing... (${retries} retries left, model: ${targetModel}). Message: ${errorMsg}`);
+      
+      let waitTime = 20000;
+      const match = errorMsg.match(/retry in (\d+(\.\d+)?)s/i);
+      if (match && match[1]) {
+        waitTime = Math.ceil(parseFloat(match[1])) * 1000 + 2000;
+      }
+      console.log(`Waiting for ${waitTime/1000} seconds before retrying...`);
+      await delay(waitTime);
+      return parsePurchaseInvoiceFromImage(base64Data, mimeType, retries - 1, targetModel);
+    }
+
+    console.error(`Gemini AI Service Error (${targetModel}):`, errorMsg || error);
+    return { success: false, error: errorMsg || 'Unknown processing error' };
+  }
+};
