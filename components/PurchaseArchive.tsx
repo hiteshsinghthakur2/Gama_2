@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PurchaseInvoice } from '../types';
 import { PurchaseStorageService } from '../services/PurchaseStorageService';
 import { parsePurchaseInvoiceFromImage } from '../services/geminiService';
+import { TrashStorageService } from '../services/TrashStorageService';
 
 export const PurchaseArchive: React.FC = () => {
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
@@ -228,6 +229,10 @@ export const PurchaseArchive: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this purchase invoice?")) {
       try {
+        const inv = invoices.find(i => i.id === id);
+        if (inv) {
+          await TrashStorageService.moveToTrash({ type: 'purchase', data: inv, summary: 'Purchase Invoice ' + (inv.invoiceNumber || inv.id), originalId: inv.id });
+        }
         await PurchaseStorageService.delete(id);
         await loadInvoices();
         if (viewingInvoice?.id === id) {
@@ -314,6 +319,10 @@ export const PurchaseArchive: React.FC = () => {
     if (confirm(`Are you sure you want to delete ${selectedIds.length} purchase invoices?`)) {
       try {
         for (const id of selectedIds) {
+          const inv = invoices.find(i => i.id === id);
+          if (inv) {
+            await TrashStorageService.moveToTrash({ type: 'purchase', data: inv, summary: 'Purchase Invoice ' + (inv.invoiceNumber || inv.id), originalId: inv.id });
+          }
           await PurchaseStorageService.delete(id);
         }
         setSelectedIds([]);

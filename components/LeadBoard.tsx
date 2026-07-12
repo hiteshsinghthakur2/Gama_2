@@ -15,9 +15,13 @@ const LeadBoard: React.FC<LeadBoardProps> = ({ leads, setLeads }) => {
     setLeads(leads.map(l => l.id === id ? { ...l, status: newStatus } : l));
   };
 
-  const deleteLead = (id: string) => {
+  const deleteLead = async (id: string) => {
     if (window.confirm('Delete this lead?')) {
-      setLeads(leads.filter(l => l.id !== id));
+      const lead = leads.find(l => l.id === id);
+      if (lead) {
+        await TrashStorageService.moveToTrash({ type: 'lead', data: lead, summary: 'Lead: ' + lead.name + ' (' + lead.company + ')', originalId: lead.id });
+        setLeads(leads.filter(l => l.id !== id));
+      }
     }
   };
 

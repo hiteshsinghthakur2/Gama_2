@@ -34,6 +34,9 @@ import Tools from './components/Tools';
 import { PurchaseArchive } from './components/PurchaseArchive';
 import { getAccessToken, uploadBackupToDrive } from './services/GoogleDriveService';
 import { generateMasterBackupBlob } from './services/BackupService';
+import { TrashView } from "./components/TrashView";
+import { TrashStorageService, DeletedItem } from "./services/TrashStorageService";
+import { PurchaseStorageService } from "./services/PurchaseStorageService";
 
 const STORAGE_KEYS = {
   INVOICES: 'bos_cloud_invoices',
@@ -46,7 +49,7 @@ const STORAGE_KEYS = {
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'tools' | 'purchases' | 'settings' | 'users' | 'my-profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'tools' | 'purchases' | 'settings' | 'users' | 'my-profile' | 'trash'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [syncState, setSyncState] = useState(StorageService.getSyncInfo());
@@ -250,9 +253,46 @@ const App: React.FC = () => {
     setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv));
   };
 
-  const handleDeleteInvoice = (id: string) => {
-    if (window.confirm('Delete this invoice?')) setInvoices(prev => prev.filter(inv => inv.id !== id));
+  const handleDeleteInvoice = async (id: string) => {
+    if (window.confirm('Delete this invoice?')) {
+      const inv = invoices.find(i => i.id === id);
+      if (inv) {
+        await TrashStorageService.moveToTrash({ type: 'invoice', data: inv, summary: 'Invoice ' + inv.number, originalId: inv.id });
+        setInvoices(prev => prev.filter(i => i.id !== id));
+      }
+    }
   };
+
+  const handleDeleteQuotation = async (id: string) => {
+    if (window.confirm('Delete this quotation?')) {
+      const q = quotations.find(i => i.id === id);
+      if (q) {
+        await TrashStorageService.moveToTrash({ type: 'quotation', data: q, summary: 'Quotation ' + q.number, originalId: q.id });
+        setQuotations(prev => prev.filter(i => i.id !== id));
+      }
+    }
+  };
+
+  const handleDeleteDeliveryChallan = async (id: string) => {
+    if (window.confirm('Delete this delivery challan?')) {
+      const dc = deliveryChallans.find(i => i.id === id);
+      if (dc) {
+        await TrashStorageService.moveToTrash({ type: 'delivery_challan', data: dc, summary: 'Challan ' + dc.number, originalId: dc.id });
+        setDeliveryChallans(prev => prev.filter(i => i.id !== id));
+      }
+    }
+  };
+
+  const handleDeleteClient = async (id: string) => {
+    if (window.confirm('Delete this client?')) {
+      const c = clients.find(i => i.id === id);
+      if (c) {
+        await TrashStorageService.moveToTrash({ type: 'client', data: c, summary: 'Client ' + c.name, originalId: c.id });
+        setClients(prev => prev.filter(i => i.id !== id));
+      }
+    }
+  };
+
 
   const handleSaveQuotation = (quotation: Quotation) => {
     const clientSnapshot = clients.find(c => c.id === quotation.clientId) || quotation.clientDetails;
@@ -809,7 +849,7 @@ const App: React.FC = () => {
               </button>
             </div>
             </div>
-            <QuotationList quotations={quotations} clients={clients} userProfile={userProfile} onEdit={setEditingQuotation} onDuplicate={(qt) => setQuotations([{...qt, id: `qt-${Date.now()}`, number: `COPY-${qt.number}`}, ...quotations])} onUpdateStatus={(id, status) => setQuotations(prev => prev.map(q => q.id === id ? {...q, status} : q))} onDelete={(id) => setQuotations(prev => prev.filter(q => q.id !== id))} onConvertToInvoice={handleConvertToInvoice} />
+            <QuotationList quotations={quotations} clients={clients} userProfile={userProfile} onEdit={setEditingQuotation} onDuplicate={(qt) => setQuotations([{...qt, id: `qt-${Date.now()}`, number: `COPY-${qt.number}`}, ...quotations])} onUpdateStatus={(id, status) => setQuotations(prev => prev.map(q => q.id === id ? {...q, status} : q))} onDelete={handleDeleteQuotation} onConvertToInvoice={handleConvertToInvoice} />
           </div>
         );
       case 'delivery-challans':
@@ -847,7 +887,7 @@ const App: React.FC = () => {
                 New Challan
               </button>
             </div>
-            <DeliveryChallanList challans={deliveryChallans} clients={clients} userProfile={userProfile} onEdit={setEditingDeliveryChallan} onDuplicate={(dc) => setDeliveryChallans([{...dc, id: `dc-${Date.now()}`, number: `COPY-${dc.number}`}, ...deliveryChallans])} onUpdateStatus={(id, status) => setDeliveryChallans(prev => prev.map(dc => dc.id === id ? {...dc, status} : dc))} onDelete={(id) => setDeliveryChallans(prev => prev.filter(dc => dc.id !== id))} />
+            <DeliveryChallanList challans={deliveryChallans} clients={clients} userProfile={userProfile} onEdit={setEditingDeliveryChallan} onDuplicate={(dc) => setDeliveryChallans([{...dc, id: `dc-${Date.now()}`, number: `COPY-${dc.number}`}, ...deliveryChallans])} onUpdateStatus={(id, status) => setDeliveryChallans(prev => prev.map(dc => dc.id === id ? {...dc, status} : dc))} onDelete={handleDeleteDeliveryChallan} />
           </div>
         );
       case 'leads': return <LeadBoard leads={leads} setLeads={setLeads} />;
@@ -855,7 +895,7 @@ const App: React.FC = () => {
         <ClientList 
           clients={clients} 
           onSave={handleSaveClient} 
-          onDelete={(id) => setClients(prev => prev.filter(c => c.id !== id))} 
+          onDelete={handleDeleteClient} 
           activeClient={editingClient} 
           onClearActiveClient={() => {
             setEditingClient(null);
@@ -884,6 +924,16 @@ const App: React.FC = () => {
           currentUser={currentUser!}
         />
       );
+      case 'trash': return <TrashView onRestore={(item) => {
+    switch (item.type) {
+      case 'invoice': setInvoices(prev => [...prev, item.data]); break;
+      case 'quotation': setQuotations(prev => [...prev, item.data]); break;
+      case 'delivery_challan': setDeliveryChallans(prev => [...prev, item.data]); break;
+      case 'purchase': PurchaseStorageService.save(item.data); break;
+      case 'client': setClients(prev => [...prev, item.data]); break;
+      case 'lead': setLeads(prev => [...prev, item.data]); break;
+    }
+  }} />;
       case 'my-profile': return (
         <UserProfile
           currentUser={currentUser!}
