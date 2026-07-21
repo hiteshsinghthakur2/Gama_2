@@ -232,11 +232,11 @@ const QuotationList: React.FC<QuotationListProps> = ({
                 return (
                   <tr key={qt.id} className="hover:bg-gray-50 transition relative">
                     <td className="px-6 py-4 font-bold text-gray-900">{qt.number}</td>
-                    <td className="px-6 py-4 text-gray-600 text-xs font-medium max-w-[150px] align-top" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-6 py-4 text-gray-600 text-xs font-bold max-w-[150px] align-top" onClick={(e) => e.stopPropagation()}>
                     <textarea 
                       defaultValue={qt.comment || ''}
                       placeholder="Add comment..."
-                      className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-500 focus:outline-none transition-colors px-1 py-0.5 placeholder-gray-300 text-gray-600 font-medium text-xs resize-none overflow-hidden break-words"
+                      className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-500 focus:outline-none transition-colors px-1 py-0.5 placeholder-gray-300 text-gray-600 font-bold text-xs resize-none overflow-hidden break-words"
                       rows={1}
                       ref={(el) => {
                         if (el) {
