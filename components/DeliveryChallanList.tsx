@@ -7,6 +7,7 @@ import { DocumentPreviewModal } from './DocumentPreviewModal';
 declare var html2pdf: any;
 
 interface DeliveryChallanListProps {
+  onUpdateComment?: (id: string, comment: string) => void;
   challans: DeliveryChallan[];
   clients: Client[];
   userProfile: UserBusinessProfile;
@@ -16,7 +17,8 @@ interface DeliveryChallanListProps {
   onDelete: (id: string) => void;
 }
 
-const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({ 
+const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
+  onUpdateComment, 
   challans, 
   clients, 
   userProfile,
@@ -28,7 +30,7 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [activeStatusMenuId, setActiveStatusMenuId] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [shareData, setShareData] = useState<{ doc: DeliveryChallan, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' } | null>(null);
+  const [shareData, setShareData] = useState<{ doc: DeliveryChallan, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' | 'drive' } | null>(null);
   const [previewDoc, setPreviewDoc] = useState<DeliveryChallan | null>(null);
 
   const getClient = (id: string, doc?: DeliveryChallan) => {
@@ -91,6 +93,14 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
+                } else if (shareData.target === 'drive') {
+                    try {
+                        await uploadFileToDrive(file, 'CraftDaddy Delivery Challans');
+                        alert(`Delivery Challan ${shareData.doc.number} saved to Google Drive successfully!`);
+                    } catch (e: any) {
+                        console.error('Drive upload error:', e);
+                        alert(`Failed to save to Google Drive: ${e.message}`);
+                    }
                 } else if (shareData.target === 'whatsapp') {
                     // WhatsApp Logic
                     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -198,7 +208,8 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
           <table className="w-full text-left min-w-[800px]">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Challan No</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Identity</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Comment</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Items</th>
@@ -215,6 +226,35 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
                 return (
                   <tr key={challan.id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4 font-bold text-gray-900">{challan.number}</td>
+                    <td className="px-6 py-4 text-gray-600 text-xs font-medium max-w-[150px] align-top" onClick={(e) => e.stopPropagation()}>
+                    <textarea 
+                      defaultValue={challan.comment || ''}
+                      placeholder="Add comment..."
+                      className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-500 focus:outline-none transition-colors px-1 py-0.5 placeholder-gray-300 text-gray-600 font-medium text-xs resize-none overflow-hidden break-words"
+                      rows={1}
+                      ref={(el) => {
+                        if (el) {
+                          el.style.height = 'auto';
+                          el.style.height = el.scrollHeight + 'px';
+                        }
+                      }}
+                      onInput={(e) => {
+                        e.currentTarget.style.height = 'auto';
+                        e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px';
+                      }}
+                      onBlur={(e) => {
+                        if (onUpdateComment && e.target.value !== (challan.comment || '')) {
+                          onUpdateComment(challan.id, e.target.value);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          e.currentTarget.blur();
+                        }
+                      }}
+                    />
+                  </td>
                     <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(challan.clientId, challan)?.name || 'Unknown Client'}</td>
                     <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">{new Date(challan.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</td>
                     <td className="px-6 py-4 font-medium text-gray-700">{challan.items.length} Items</td>

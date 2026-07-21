@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Invoice, Client, InvoiceStatus, UserBusinessProfile } from '../types';
 import { formatCurrency, calculateDocumentTotal } from '../services/Calculations';
+import { uploadFileToDrive } from '../services/GoogleDriveService';
 import { DocumentTemplate } from './DocumentTemplate';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 
@@ -8,6 +9,7 @@ import { DocumentPreviewModal } from './DocumentPreviewModal';
 declare var html2pdf: any;
 
 interface InvoiceListProps {
+  onUpdateComment?: (id: string, comment: string) => void;
   invoices: Invoice[];
   clients: Client[];
   userProfile: UserBusinessProfile;
@@ -18,7 +20,8 @@ interface InvoiceListProps {
   onConvertToDeliveryChallan?: (invoice: Invoice) => void;
 }
 
-const InvoiceList: React.FC<InvoiceListProps> = ({ 
+const InvoiceList: React.FC<InvoiceListProps> = ({
+  onUpdateComment, 
   invoices, 
   clients, 
   userProfile,
@@ -30,10 +33,10 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
 }) => {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [activeStatusMenuId, setActiveStatusMenuId] = useState<string | null>(null);
-  const [shareData, setShareData] = useState<{ doc: Invoice, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' } | null>(null);
+  const [shareData, setShareData] = useState<{ doc: Invoice, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' | 'drive' } | null>(null);
   const [previewDoc, setPreviewDoc] = useState<Invoice | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [bulkShareData, setBulkShareData] = useState<{ docs: Invoice[], target: 'whatsapp' | 'email' | 'download' } | null>(null);
+  const [bulkShareData, setBulkShareData] = useState<{ docs: Invoice[], target: 'whatsapp' | 'email' | 'download' | 'drive' } | null>(null);
 
   // Filtering State
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -73,12 +76,12 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     }
   };
 
-  const handleShare = (inv: Invoice, target: 'whatsapp' | 'email' | 'download') => {
+  const handleShare = (inv: Invoice, target: 'whatsapp' | 'email' | 'download' | 'drive') => {
     setShareData({ doc: inv, client: getClient(inv.clientId, inv), target });
     setActiveMenuId(null);
   };
 
-  const handleBulkShare = (target: 'whatsapp' | 'email' | 'download') => {
+  const handleBulkShare = (target: 'whatsapp' | 'email' | 'download' | 'drive') => {
       const docsToShare = invoices.filter(inv => selectedIds.includes(inv.id));
       if (docsToShare.length === 0) return;
       setBulkShareData({ docs: docsToShare, target });
@@ -159,6 +162,14 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
+                } else if (shareData.target === 'drive') {
+                    try {
+                        await uploadFileToDrive(file, 'CraftDaddy Invoices');
+                        alert(`Invoice ${shareData.doc.number} saved to Google Drive successfully!`);
+                    } catch (e: any) {
+                        console.error('Drive upload error:', e);
+                        alert(`Failed to save to Google Drive: ${e.message}`);
+                    }
                 } else if (shareData.target === 'whatsapp') {
                     // WhatsApp Logic
                     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -256,7 +267,20 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                     }
                 }
 
-                if (bulkShareData.target !== 'download' && files.length > 0) {
+                if (bulkShareData.target === 'drive') {
+                    try {
+                        const JSZip = (await import('jszip')).default;
+                        const zip = new JSZip();
+                        files.forEach(f => zip.file(f.name, f));
+                        const content = await zip.generateAsync({ type: 'blob' });
+                        const zipFile = new File([content], 'Bulk_Invoices.zip', { type: 'application/zip' });
+                        await uploadFileToDrive(zipFile, 'CraftDaddy Invoices');
+                        alert('Bulk invoices saved to Google Drive successfully!');
+                    } catch (e: any) {
+                        console.error('Drive upload error:', e);
+                        alert(`Failed to save bulk invoices to Google Drive: ${e.message}`);
+                    }
+                } else if (bulkShareData.target !== 'download' && files.length > 0) {
                     if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
                         await navigator.share({
                             files,
@@ -499,7 +523,11 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex justify-between items-center animate-in fade-in slide-in-from-top-2">
             <span className="text-indigo-800 font-bold text-sm px-3">{selectedIds.length} invoice(s) selected</span>
             <div className="flex gap-2">
-                <button onClick={() => handleBulkShare('download')} className="px-3 py-1.5 bg-white text-gray-700 text-xs font-bold rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 flex items-center gap-2 transition">
+                <button onClick={() => handleBulkShare('drive')} className="px-3 py-1.5 bg-white text-indigo-700 text-xs font-bold rounded-lg shadow-sm border border-indigo-200 hover:bg-indigo-50 flex items-center gap-2 transition">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                            Save to Drive
+                        </button>
+                        <button onClick={() => handleBulkShare('download')} className="px-3 py-1.5 bg-white text-gray-700 text-xs font-bold rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 flex items-center gap-2 transition">
                     <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     Download All
                 </button>
@@ -529,6 +557,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                     />
                 </th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Identity</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Comment</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Issued</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Value</th>
@@ -552,6 +581,35 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                     />
                   </td>
                   <td className="px-6 py-4 font-bold text-gray-900">{inv.number}</td>
+                  <td className="px-6 py-4 text-gray-600 text-xs font-medium max-w-[150px] align-top" onClick={(e) => e.stopPropagation()}>
+                    <textarea 
+                      defaultValue={inv.comment || ''}
+                      placeholder="Add comment..."
+                      className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-500 focus:outline-none transition-colors px-1 py-0.5 placeholder-gray-300 text-gray-600 font-medium text-xs resize-none overflow-hidden break-words"
+                      rows={1}
+                      ref={(el) => {
+                        if (el) {
+                          el.style.height = 'auto';
+                          el.style.height = el.scrollHeight + 'px';
+                        }
+                      }}
+                      onInput={(e) => {
+                        e.currentTarget.style.height = 'auto';
+                        e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px';
+                      }}
+                      onBlur={(e) => {
+                        if (onUpdateComment && e.target.value !== (inv.comment || '')) {
+                          onUpdateComment(inv.id, e.target.value);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          e.currentTarget.blur();
+                        }
+                      }}
+                    />
+                  </td>
                   <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(inv.clientId, inv)?.name || 'Unknown Client'}</td>
                   <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">{new Date(inv.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</td>
                   <td className="px-6 py-4 font-black text-indigo-700">{formatCurrency(total)}</td>
@@ -626,6 +684,13 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                               >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                   Edit
+                              </button>
+                              <button 
+                                onClick={() => handleShare(inv, 'drive')} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                                  Save to Drive
                               </button>
                               <button 
                                 onClick={() => handleShare(inv, 'download')} 

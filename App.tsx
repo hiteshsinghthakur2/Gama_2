@@ -249,6 +249,18 @@ const App: React.FC = () => {
     setEditingInvoice(null);
   };
 
+  const handleUpdateInvoiceComment = (id: string, comment: string) => {
+    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, comment } : inv));
+  };
+
+  const handleUpdateQuotationComment = (id: string, comment: string) => {
+    setQuotations(prev => prev.map(qt => qt.id === id ? { ...qt, comment } : qt));
+  };
+
+  const handleUpdateChallanComment = (id: string, comment: string) => {
+    setDeliveryChallans(prev => prev.map(dc => dc.id === id ? { ...dc, comment } : dc));
+  };
+
   const handleUpdateInvoiceStatus = (id: string, status: InvoiceStatus) => {
     setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv));
   };
@@ -781,7 +793,7 @@ const App: React.FC = () => {
                 </button>
               </div>
             </div>
-            <InvoiceList invoices={invoices} clients={clients} userProfile={userProfile} onEdit={setEditingInvoice} onDuplicate={(inv) => setInvoices([{...inv, id: `inv-${Date.now()}`, number: `COPY-${inv.number}`}, ...invoices])} onUpdateStatus={handleUpdateInvoiceStatus} onDelete={handleDeleteInvoice} onConvertToDeliveryChallan={handleConvertToDeliveryChallan} />
+            <InvoiceList onUpdateComment={handleUpdateInvoiceComment} invoices={invoices} clients={clients} userProfile={userProfile} onEdit={setEditingInvoice} onDuplicate={(inv) => setInvoices([{...inv, id: `inv-${Date.now()}`, number: `COPY-${inv.number}`}, ...invoices])} onUpdateStatus={handleUpdateInvoiceStatus} onDelete={handleDeleteInvoice} onConvertToDeliveryChallan={handleConvertToDeliveryChallan} />
             <ExportInvoicesModal 
               isOpen={isExportModalOpen} 
               onClose={() => setIsExportModalOpen(false)} 
@@ -849,7 +861,7 @@ const App: React.FC = () => {
               </button>
             </div>
             </div>
-            <QuotationList quotations={quotations} clients={clients} userProfile={userProfile} onEdit={setEditingQuotation} onDuplicate={(qt) => setQuotations([{...qt, id: `qt-${Date.now()}`, number: `COPY-${qt.number}`}, ...quotations])} onUpdateStatus={(id, status) => setQuotations(prev => prev.map(q => q.id === id ? {...q, status} : q))} onDelete={handleDeleteQuotation} onConvertToInvoice={handleConvertToInvoice} />
+            <QuotationList onUpdateComment={handleUpdateQuotationComment} quotations={quotations} clients={clients} userProfile={userProfile} onEdit={setEditingQuotation} onDuplicate={(qt) => setQuotations([{...qt, id: `qt-${Date.now()}`, number: `COPY-${qt.number}`}, ...quotations])} onUpdateStatus={(id, status) => setQuotations(prev => prev.map(q => q.id === id ? {...q, status} : q))} onDelete={handleDeleteQuotation} onConvertToInvoice={handleConvertToInvoice} />
           </div>
         );
       case 'delivery-challans':
@@ -887,7 +899,7 @@ const App: React.FC = () => {
                 New Challan
               </button>
             </div>
-            <DeliveryChallanList challans={deliveryChallans} clients={clients} userProfile={userProfile} onEdit={setEditingDeliveryChallan} onDuplicate={(dc) => setDeliveryChallans([{...dc, id: `dc-${Date.now()}`, number: `COPY-${dc.number}`}, ...deliveryChallans])} onUpdateStatus={(id, status) => setDeliveryChallans(prev => prev.map(dc => dc.id === id ? {...dc, status} : dc))} onDelete={handleDeleteDeliveryChallan} />
+            <DeliveryChallanList onUpdateComment={handleUpdateChallanComment} challans={deliveryChallans} clients={clients} userProfile={userProfile} onEdit={setEditingDeliveryChallan} onDuplicate={(dc) => setDeliveryChallans([{...dc, id: `dc-${Date.now()}`, number: `COPY-${dc.number}`}, ...deliveryChallans])} onUpdateStatus={(id, status) => setDeliveryChallans(prev => prev.map(dc => dc.id === id ? {...dc, status} : dc))} onDelete={handleDeleteDeliveryChallan} />
           </div>
         );
       case 'leads': return <LeadBoard leads={leads} setLeads={setLeads} />;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Quotation, Client, QuotationStatus, UserBusinessProfile } from '../types';
 import { formatCurrency, calculateDocumentTotal } from '../services/Calculations';
+import { uploadFileToDrive } from '../services/GoogleDriveService';
 import { DocumentTemplate } from './DocumentTemplate';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 
@@ -8,6 +9,7 @@ import { DocumentPreviewModal } from './DocumentPreviewModal';
 declare var html2pdf: any;
 
 interface QuotationListProps {
+  onUpdateComment?: (id: string, comment: string) => void;
   quotations: Quotation[];
   clients: Client[];
   userProfile: UserBusinessProfile;
@@ -18,7 +20,8 @@ interface QuotationListProps {
   onDelete: (id: string) => void;
 }
 
-const QuotationList: React.FC<QuotationListProps> = ({ 
+const QuotationList: React.FC<QuotationListProps> = ({
+  onUpdateComment, 
   quotations, 
   clients, 
   userProfile,
@@ -31,7 +34,7 @@ const QuotationList: React.FC<QuotationListProps> = ({
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [activeStatusMenuId, setActiveStatusMenuId] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [shareData, setShareData] = useState<{ doc: Quotation, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' } | null>(null);
+  const [shareData, setShareData] = useState<{ doc: Quotation, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' | 'drive' } | null>(null);
   const [previewDoc, setPreviewDoc] = useState<Quotation | null>(null);
 
   const getClient = (id: string, qt?: Quotation) => {
@@ -96,6 +99,14 @@ const QuotationList: React.FC<QuotationListProps> = ({
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
+                } else if (shareData.target === 'drive') {
+                    try {
+                        await uploadFileToDrive(file, 'CraftDaddy Quotations');
+                        alert(`Quotation ${shareData.doc.number} saved to Google Drive successfully!`);
+                    } catch (e: any) {
+                        console.error('Drive upload error:', e);
+                        alert(`Failed to save to Google Drive: ${e.message}`);
+                    }
                 } else if (shareData.target === 'whatsapp') {
                      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({
@@ -201,6 +212,7 @@ const QuotationList: React.FC<QuotationListProps> = ({
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Identity</th>
+                <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Comment</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Value</th>
@@ -220,6 +232,35 @@ const QuotationList: React.FC<QuotationListProps> = ({
                 return (
                   <tr key={qt.id} className="hover:bg-gray-50 transition relative">
                     <td className="px-6 py-4 font-bold text-gray-900">{qt.number}</td>
+                    <td className="px-6 py-4 text-gray-600 text-xs font-medium max-w-[150px] align-top" onClick={(e) => e.stopPropagation()}>
+                    <textarea 
+                      defaultValue={qt.comment || ''}
+                      placeholder="Add comment..."
+                      className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-500 focus:outline-none transition-colors px-1 py-0.5 placeholder-gray-300 text-gray-600 font-medium text-xs resize-none overflow-hidden break-words"
+                      rows={1}
+                      ref={(el) => {
+                        if (el) {
+                          el.style.height = 'auto';
+                          el.style.height = el.scrollHeight + 'px';
+                        }
+                      }}
+                      onInput={(e) => {
+                        e.currentTarget.style.height = 'auto';
+                        e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px';
+                      }}
+                      onBlur={(e) => {
+                        if (onUpdateComment && e.target.value !== (qt.comment || '')) {
+                          onUpdateComment(qt.id, e.target.value);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          e.currentTarget.blur();
+                        }
+                      }}
+                    />
+                  </td>
                     <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(qt.clientId, qt)?.name || 'Unknown Client'}</td>
                     <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">{new Date(qt.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</td>
                     <td className="px-6 py-4 font-black text-indigo-700">{formatCurrency(total)}</td>

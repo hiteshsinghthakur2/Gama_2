@@ -3,6 +3,7 @@ import { PurchaseInvoice } from '../types';
 import { PurchaseStorageService } from '../services/PurchaseStorageService';
 import { parsePurchaseInvoiceFromImage } from '../services/geminiService';
 import { TrashStorageService } from '../services/TrashStorageService';
+import { uploadFileToDrive } from '../services/GoogleDriveService';
 
 export const PurchaseArchive: React.FC = () => {
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
@@ -244,6 +245,19 @@ export const PurchaseArchive: React.FC = () => {
     }
   };
 
+  const handleUpdateComment = async (id: string, comment: string) => {
+    try {
+      const inv = invoices.find(i => i.id === id);
+      if (!inv) return;
+      const updated = { ...inv, comment };
+      const currentInvoices = invoices.map(i => i.id === id ? updated : i);
+      setInvoices(currentInvoices);
+      await PurchaseStorageService.saveAll(currentInvoices);
+    } catch (e) {
+      console.error("Failed to update comment", e);
+    }
+  };
+
   const filteredInvoices = invoices.filter(inv => {
     const matchesSearch = !searchTerm || inv.vendorName.toLowerCase().includes(searchTerm.toLowerCase()) || inv.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !filterCategory || inv.category?.toLowerCase() === filterCategory.toLowerCase();
@@ -270,6 +284,62 @@ export const PurchaseArchive: React.FC = () => {
       setSelectedIds([...selectedIds, id]);
     }
   };
+
+  
+  const handleDriveUpload = async (inv: PurchaseInvoice) => {
+    if (!inv.fileData) return;
+    try {
+        const base64Data = inv.fileData.split(',')[1];
+        const contentType = inv.fileType || 'image/png';
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: contentType });
+        const ext = inv.fileType?.includes('pdf') ? 'pdf' : (inv.fileType?.split('/')[1] || 'png');
+        const filename = inv.fileName || `invoice_${inv.invoiceNumber || inv.id}.${ext}`;
+        const uploadFile = new File([blob], filename, { type: contentType });
+        
+        await uploadFileToDrive(uploadFile, 'CraftDaddy Purchases');
+        alert('File saved to Google Drive successfully!');
+    } catch (e: any) {
+        console.error('Drive upload error:', e);
+        alert(`Failed to save to Google Drive: ${e.message}`);
+    }
+  };
+
+  const handleBulkDriveUpload = async () => {
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      
+      const targetInvoices = selectedIds.length > 0 ? filteredInvoices.filter(i => selectedIds.includes(i.id)) : filteredInvoices;
+      const invoicesWithFiles = targetInvoices.filter(i => i.fileData);
+      if (invoicesWithFiles.length === 0) {
+        alert("No files to save in the current view/selection.");
+        return;
+      }
+      
+      invoicesWithFiles.forEach(inv => {
+        const base64Data = inv.fileData!.split(',')[1];
+        const ext = inv.fileType?.includes('pdf') ? 'pdf' : (inv.fileType?.split('/')[1] || 'png');
+        const fileName = inv.fileName || `${inv.vendorName}_${inv.invoiceNumber || inv.id}.${ext}`;
+        zip.file(fileName, base64Data, { base64: true });
+      });
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const zipFile = new File([content], 'Bulk_Purchases.zip', { type: 'application/zip' });
+      
+      await uploadFileToDrive(zipFile, 'CraftDaddy Purchases');
+      alert('Bulk purchases saved to Google Drive successfully!');
+    } catch (e: any) {
+      console.error("Error bulk uploading", e);
+      alert(`Failed to save bulk purchases to Google Drive: ${e.message}`);
+    }
+  };
+
 
   const handleDownload = (inv: PurchaseInvoice) => {
     if (!inv.fileData) return;
@@ -446,6 +516,10 @@ export const PurchaseArchive: React.FC = () => {
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex justify-between items-center animate-in fade-in slide-in-from-top-2">
                 <span className="text-indigo-800 font-bold text-sm px-3">{selectedIds.length} invoice(s) selected</span>
                 <div className="flex gap-2">
+                    <button onClick={handleBulkDriveUpload} className="px-3 py-1.5 bg-white text-indigo-700 text-xs font-bold rounded-lg shadow-sm border border-indigo-200 hover:bg-indigo-50 flex items-center gap-2 transition">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                        Save to Drive
+                    </button>
                     <button onClick={handleBulkDownload} className="px-3 py-1.5 bg-white text-gray-700 text-xs font-bold rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 flex items-center gap-2 transition">
                         <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                         Download Selected
@@ -472,7 +546,8 @@ export const PurchaseArchive: React.FC = () => {
                     </th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
                     <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Vendor</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Inv #</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Identity</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Comment</th>
                   <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
                   <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Attachment</th>
                   <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
@@ -492,6 +567,35 @@ export const PurchaseArchive: React.FC = () => {
                     <td className="px-6 py-4 text-sm font-bold text-gray-600">{new Date(inv.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short', year: 'numeric'})}</td>
                     <td className="px-6 py-4 font-bold text-gray-900">{inv.vendorName}</td>
                     <td className="px-6 py-4 text-sm text-gray-500 font-mono">{inv.invoiceNumber || '-'}</td>
+                    <td className="px-6 py-4 text-gray-600 text-xs font-medium max-w-[150px] align-top" onClick={(e) => e.stopPropagation()}>
+                    <textarea 
+                      defaultValue={inv.comment || ''}
+                      placeholder="Add comment..."
+                      className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-500 focus:outline-none transition-colors px-1 py-0.5 placeholder-gray-300 text-gray-600 font-medium text-xs resize-none overflow-hidden break-words"
+                      rows={1}
+                      ref={(el) => {
+                        if (el) {
+                          el.style.height = 'auto';
+                          el.style.height = el.scrollHeight + 'px';
+                        }
+                      }}
+                      onInput={(e) => {
+                        e.currentTarget.style.height = 'auto';
+                        e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px';
+                      }}
+                      onBlur={(e) => {
+                        if (e.target.value !== (inv.comment || '')) {
+                          handleUpdateComment(inv.id, e.target.value);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          e.currentTarget.blur();
+                        }
+                      }}
+                    />
+                  </td>
                     <td className="px-6 py-4 text-right font-bold text-gray-900">₹{inv.amount.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
                     <td className="px-6 py-4 text-center">
                         {inv.fileData ? (

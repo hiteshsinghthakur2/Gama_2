@@ -105,6 +105,7 @@ export interface Invoice {
   clientDetails?: Client; // Embedded snapshot of the client at creation/edit time
   items: LineItem[];
   notes?: string;
+  comment?: string;
   terms?: string;
   placeOfSupply: string;
   bankDetails?: BankAccount;
@@ -129,6 +130,7 @@ export interface Quotation {
   clientDetails?: Client; // Embedded snapshot
   items: LineItem[];
   notes?: string;
+  comment?: string;
   terms?: string;
   placeOfSupply: string;
   bankDetails?: BankAccount;
@@ -157,6 +159,7 @@ export interface DeliveryChallan {
   clientDetails?: Client; // Embedded snapshot
   items: LineItem[];
   notes?: string;
+  comment?: string;
   terms?: string;
   placeOfSupply: string;
   customFields?: CustomField[];
@@ -176,6 +179,7 @@ export interface PurchaseInvoice {
   fileName?: string;
   fileType?: string; // 'image/jpeg', 'application/pdf', etc.
   notes?: string;
+  comment?: string;
   createdAt: string;
 }
 
