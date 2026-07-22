@@ -70,6 +70,7 @@ interface DocumentFormProps {
   mode?: 'invoice' | 'quotation' | 'delivery-challan';
   onConvertToInvoice?: (quotation: Quotation) => void;
   existingInvoices?: Invoice[];
+  pastItems?: LineItem[];
   onSaveClient?: (client: Client) => void;
   onEditClient?: (client: Client) => void;
 }
@@ -84,7 +85,8 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
   onConvertToInvoice,
   existingInvoices = [],
   onEditClient,
-  onSaveClient
+  onSaveClient,
+  pastItems = []
 }) => {
   // Use a generic state that matches the structure of both Invoice and Quotation
   // We'll treat 'dueDate' as 'validUntil' when in quotation mode
@@ -489,6 +491,12 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-50 pb-32 relative font-sans text-sm text-gray-700">
+      <datalist id="past-items-list">
+        {pastItems?.map((pi, i) => (
+            <option key={i} value={pi.description} />
+        ))}
+      </datalist>
+
       
       {/* =====================================================================================
           EDITOR VIEW (Visible on Screen, Hidden on Print)
@@ -835,7 +843,25 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                                       type="text" 
                                       className="w-full bg-transparent border-b border-dashed border-gray-300 focus:border-indigo-500 outline-none pb-1 font-medium placeholder-gray-400 text-gray-900 text-sm"
                                       value={item.description}
-                                      onChange={e => updateItem(item.id, 'description', e.target.value)}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        updateItem(item.id, 'description', val);
+                                        const match = pastItems.find(p => p.description.toLowerCase() === val.toLowerCase());
+                                        if (match) {
+                                            setDocument((prev: any) => ({
+                                                ...prev,
+                                                items: prev.items.map((it: any) => 
+                                                    it.id === item.id ? { 
+                                                        ...it, 
+                                                        hsn: match.hsn || '',
+                                                        rate: match.rate || 0,
+                                                        taxRate: match.taxRate || 18
+                                                    } : it
+                                                )
+                                            }));
+                                        }
+                                      }}
+                                      list={(item.description && item.description.length >= 2) ? "past-items-list" : undefined}
                                       placeholder="Item Name"
                                     />
                                 </div>
@@ -948,7 +974,25 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                                     type="text" 
                                     className="w-2/3 text-right font-medium text-gray-900 outline-none bg-transparent focus:text-indigo-600 placeholder-gray-300"
                                     value={item.description}
-                                    onChange={e => updateItem(item.id, 'description', e.target.value)}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        updateItem(item.id, 'description', val);
+                                        const match = pastItems.find(p => p.description.toLowerCase() === val.toLowerCase());
+                                        if (match) {
+                                            setDocument((prev: any) => ({
+                                                ...prev,
+                                                items: prev.items.map((it: any) => 
+                                                    it.id === item.id ? { 
+                                                        ...it, 
+                                                        hsn: match.hsn || '',
+                                                        rate: match.rate || 0,
+                                                        taxRate: match.taxRate || 18
+                                                    } : it
+                                                )
+                                            }));
+                                        }
+                                    }}
+                                    list={(item.description && item.description.length >= 2) ? "past-items-list" : undefined}
                                     placeholder="Item Name"
                                 />
                             </div>

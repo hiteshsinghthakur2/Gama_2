@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Invoice, 
   InvoiceStatus, 
@@ -260,6 +260,36 @@ const App: React.FC = () => {
   const handleUpdateChallanComment = (id: string, comment: string) => {
     setDeliveryChallans(prev => prev.map(dc => dc.id === id ? { ...dc, comment } : dc));
   };
+
+  const pastItems = useMemo(() => {
+    const allItems: any[] = [];
+    const addItems = (docs: any[]) => {
+      docs.forEach(doc => {
+        if (doc.items && Array.isArray(doc.items)) {
+          doc.items.forEach((item: any) => {
+            if (item.description) {
+              allItems.push(item);
+            }
+          });
+        }
+      });
+    };
+    addItems(invoices);
+    addItems(quotations);
+    addItems(deliveryChallans);
+    
+    const uniqueItems: any[] = [];
+    const seen = new Set();
+    for (let i = allItems.length - 1; i >= 0; i--) {
+        const item = allItems[i];
+        const key = item.description.toLowerCase().trim();
+        if (!seen.has(key)) {
+            seen.add(key);
+            uniqueItems.push(item);
+        }
+    }
+    return uniqueItems;
+  }, [invoices, quotations, deliveryChallans]);
 
   const handleUpdateInvoiceStatus = (id: string, status: InvoiceStatus) => {
     setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv));
@@ -717,7 +747,7 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard invoices={invoices} leads={leads} />;
       case 'invoices':
-        if (editingInvoice) return <InvoiceForm mode="invoice" userProfile={userProfile} clients={clients} onSave={handleSaveInvoice} onCancel={() => setEditingInvoice(null)} initialData={editingInvoice} existingInvoices={invoices} onEditClient={(client) => { setEditingClient(client); setActiveTab('clients'); }} onSaveClient={handleSaveClient} />;
+        if (editingInvoice) return <InvoiceForm pastItems={pastItems} mode="invoice" userProfile={userProfile} clients={clients} onSave={handleSaveInvoice} onCancel={() => setEditingInvoice(null)} initialData={editingInvoice} existingInvoices={invoices} onEditClient={(client) => { setEditingClient(client); setActiveTab('clients'); }} onSaveClient={handleSaveClient} />;
         return (
           <div className="p-4 md:p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -804,7 +834,7 @@ const App: React.FC = () => {
           </div>
         );
       case 'quotations':
-        if (editingQuotation) return <InvoiceForm mode="quotation" userProfile={userProfile} clients={clients} onSave={handleSaveQuotation} onCancel={() => setEditingQuotation(null)} initialData={editingQuotation} onConvertToInvoice={handleConvertToInvoice} onEditClient={(client) => { setEditingClient(client); setActiveTab('clients'); }} onSaveClient={handleSaveClient} />;
+        if (editingQuotation) return <InvoiceForm pastItems={pastItems} mode="quotation" userProfile={userProfile} clients={clients} onSave={handleSaveQuotation} onCancel={() => setEditingQuotation(null)} initialData={editingQuotation} onConvertToInvoice={handleConvertToInvoice} onEditClient={(client) => { setEditingClient(client); setActiveTab('clients'); }} onSaveClient={handleSaveClient} />;
         return (
           <div className="p-4 md:p-6 lg:p-8">
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -865,7 +895,7 @@ const App: React.FC = () => {
           </div>
         );
       case 'delivery-challans':
-        if (editingDeliveryChallan) return <InvoiceForm mode="delivery-challan" userProfile={userProfile} clients={clients} onSave={handleSaveDeliveryChallan} onCancel={() => setEditingDeliveryChallan(null)} initialData={editingDeliveryChallan} onEditClient={(client) => { setEditingClient(client); setActiveTab('clients'); }} onSaveClient={handleSaveClient} />;
+        if (editingDeliveryChallan) return <InvoiceForm pastItems={pastItems} mode="delivery-challan" userProfile={userProfile} clients={clients} onSave={handleSaveDeliveryChallan} onCancel={() => setEditingDeliveryChallan(null)} initialData={editingDeliveryChallan} onEditClient={(client) => { setEditingClient(client); setActiveTab('clients'); }} onSaveClient={handleSaveClient} />;
         return (
           <div className="p-4 md:p-6 lg:p-8">
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
