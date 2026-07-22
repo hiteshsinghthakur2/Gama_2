@@ -90,6 +90,44 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
 }) => {
   // Use a generic state that matches the structure of both Invoice and Quotation
   // We'll treat 'dueDate' as 'validUntil' when in quotation mode
+
+  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
+  const [dragOverItemIndex, setDragOverItemIndex] = useState<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    setDraggedItemIndex(index);
+    // Needed for Firefox
+    if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index.toString());
+    }
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    if (index !== dragOverItemIndex) {
+        setDragOverItemIndex(index);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); // Necessary to allow dropping
+  };
+
+  const handleDragEnd = () => {
+    if (draggedItemIndex !== null && dragOverItemIndex !== null && draggedItemIndex !== dragOverItemIndex) {
+      setDocument((prev: any) => {
+          const newItems = [...prev.items];
+          const draggedItem = newItems[draggedItemIndex];
+          newItems.splice(draggedItemIndex, 1);
+          newItems.splice(dragOverItemIndex, 0, draggedItem);
+          return { ...prev, items: newItems };
+      });
+    }
+    setDraggedItemIndex(null);
+    setDragOverItemIndex(null);
+  };
+
   const [document, setDocument] = useState<any>(() => {
     const generateNumber = (mode: 'invoice' | 'quotation' | 'delivery-challan') => {
       let seq;
@@ -834,7 +872,18 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
                   {document.items.map((item: LineItem, idx: number) => {
                     const calc = calculateLineItem(item, !!isInterState);
                     return (
-                        <div key={item.id} className="border-b border-gray-100 hover:bg-gray-50 transition group">
+                        
+<div 
+  key={item.id} 
+  className={`border-b border-gray-100 transition group bg-white ${draggedItemIndex === idx ? 'opacity-50 border-indigo-500 border-2' : ''} ${dragOverItemIndex === idx && draggedItemIndex !== idx ? 'border-t-2 border-t-indigo-500' : ''}`}
+  draggable
+  onDragStart={(e) => handleDragStart(e, idx)}
+  onDragEnter={(e) => handleDragEnter(e, idx)}
+  onDragOver={handleDragOver}
+  onDragEnd={handleDragEnd}
+  style={{ cursor: 'grab' }}
+>
+
                           <div className={`py-4 px-3 grid ${GRID_COLS} gap-2 items-start text-xs text-gray-800`}>
                               <div className="font-bold pt-2 text-base">{idx + 1}.</div>
                               <div className="space-y-3">
@@ -951,7 +1000,18 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
              {document.items.map((item: LineItem, idx: number) => {
                  const calc = calculateLineItem(item, !!isInterState);
                  return (
-                    <div key={item.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                    
+<div 
+  key={item.id} 
+  className={`bg-white border rounded-xl shadow-sm overflow-hidden ${draggedItemIndex === idx ? 'opacity-50 border-indigo-500 border-2' : 'border-gray-200'} ${dragOverItemIndex === idx && draggedItemIndex !== idx ? 'border-t-2 border-t-indigo-500' : ''}`}
+  draggable
+  onDragStart={(e) => handleDragStart(e, idx)}
+  onDragEnter={(e) => handleDragEnter(e, idx)}
+  onDragOver={handleDragOver}
+  onDragEnd={handleDragEnd}
+  style={{ cursor: 'grab' }}
+>
+
                         {/* Header */}
                         <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
                             <span className="font-black text-gray-500 text-lg">{idx + 1}.</span>
