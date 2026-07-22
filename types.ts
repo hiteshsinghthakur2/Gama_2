@@ -197,5 +197,9 @@ export interface Lead {
   company: string;
   value: number;
   status: LeadStatus;
+  description?: string;
+  email?: string;
+  phone?: string;
+  nextFollowUp?: string;
   createdAt: string;
 }
