@@ -29,6 +29,7 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
 }) => {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [activeStatusMenuId, setActiveStatusMenuId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'date' | 'number'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [shareData, setShareData] = useState<{ doc: DeliveryChallan, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' | 'drive' } | null>(null);
   const [previewDoc, setPreviewDoc] = useState<DeliveryChallan | null>(null);
@@ -221,7 +222,17 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
               {[...challans].sort((a, b) => {
                 const dateA = new Date(a.date).getTime();
                 const dateB = new Date(b.date).getTime();
-                return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+                if (sortBy === 'number') {
+      const numA = a.number.toLowerCase();
+      const numB = b.number.toLowerCase();
+      return sortOrder === 'asc' ? numA.localeCompare(numB, undefined, { numeric: true }) : numB.localeCompare(numA, undefined, { numeric: true });
+    }
+    if (dateA === dateB) {
+        const numA = a.number.toLowerCase();
+        const numB = b.number.toLowerCase();
+        return sortOrder === 'asc' ? numA.localeCompare(numB, undefined, { numeric: true }) : numB.localeCompare(numA, undefined, { numeric: true });
+    }
+    return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
               }).map((challan) => {
                 return (
                   <tr key={challan.id} className="hover:bg-gray-50 transition">

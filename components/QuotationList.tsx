@@ -33,6 +33,7 @@ const QuotationList: React.FC<QuotationListProps> = ({
 }) => {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [activeStatusMenuId, setActiveStatusMenuId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'date' | 'number'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [shareData, setShareData] = useState<{ doc: Quotation, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' | 'drive' } | null>(null);
   const [previewDoc, setPreviewDoc] = useState<Quotation | null>(null);
@@ -224,7 +225,17 @@ const QuotationList: React.FC<QuotationListProps> = ({
               {[...quotations].sort((a, b) => {
                 const dateA = new Date(a.date).getTime();
                 const dateB = new Date(b.date).getTime();
-                return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+                if (sortBy === 'number') {
+      const numA = a.number.toLowerCase();
+      const numB = b.number.toLowerCase();
+      return sortOrder === 'asc' ? numA.localeCompare(numB, undefined, { numeric: true }) : numB.localeCompare(numA, undefined, { numeric: true });
+    }
+    if (dateA === dateB) {
+        const numA = a.number.toLowerCase();
+        const numB = b.number.toLowerCase();
+        return sortOrder === 'asc' ? numA.localeCompare(numB, undefined, { numeric: true }) : numB.localeCompare(numA, undefined, { numeric: true });
+    }
+    return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
               }).map((qt) => {
                 // Updated to use the correct final calculation including discounts/charges
                 const total = calculateDocumentTotal(qt);

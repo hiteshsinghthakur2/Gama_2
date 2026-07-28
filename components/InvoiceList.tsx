@@ -46,6 +46,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   const [filterEndDate, setFilterEndDate] = useState<string>('');
   const [filterClient, setFilterClient] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'date' | 'number'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const getClient = (id: string, inv?: Invoice) => {
@@ -392,6 +393,16 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   }).sort((a, b) => {
     const dateA = new Date(a.date).getTime();
     const dateB = new Date(b.date).getTime();
+    if (sortBy === 'number') {
+      const numA = a.number.toLowerCase();
+      const numB = b.number.toLowerCase();
+      return sortOrder === 'asc' ? numA.localeCompare(numB, undefined, { numeric: true }) : numB.localeCompare(numA, undefined, { numeric: true });
+    }
+    if (dateA === dateB) {
+        const numA = a.number.toLowerCase();
+        const numB = b.number.toLowerCase();
+        return sortOrder === 'asc' ? numA.localeCompare(numB, undefined, { numeric: true }) : numB.localeCompare(numA, undefined, { numeric: true });
+    }
     return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
   });
 
@@ -487,14 +498,25 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
           </select>
         </div>
         <div>
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Sort Order</label>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Sort By</label>
+          <select 
+            value={sortBy} 
+            onChange={(e) => setSortBy(e.target.value as 'date' | 'number')}
+            className="w-full sm:w-32 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            <option value="date">Date</option>
+            <option value="number">Identity</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Order</label>
           <select 
             value={sortOrder} 
             onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
             className="w-full sm:w-32 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
           >
-            <option value="desc">Latest First</option>
-            <option value="asc">Oldest First</option>
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
           </select>
         </div>
         <div className="flex-grow flex justify-end items-center gap-4">
