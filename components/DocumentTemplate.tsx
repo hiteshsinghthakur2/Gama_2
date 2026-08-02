@@ -218,6 +218,26 @@ export const DocumentTemplate: React.FC<DocumentTemplateProps> = ({ document, us
                     </div>
                 </div>
                 )}
+                {/* Payment Details */
+                 !isQuotation && !isDeliveryChallan && (document as Invoice).status === 'Paid' && ((document as Invoice).paymentReference || (document as Invoice).paymentDate) && (
+                <div className="bg-emerald-50 p-4 rounded border border-emerald-100 mt-4">
+                    <h3 className="text-emerald-700 font-bold text-sm mb-3 border-b border-emerald-200 pb-2">PAYMENT RECEIVED</h3>
+                    <div className="grid grid-cols-[100px_1fr] gap-y-1 text-sm">
+                        {(document as Invoice).paymentDate && (
+                            <>
+                                <span className="text-emerald-600">Date</span>
+                                <span className="font-bold text-emerald-900">{new Date((document as Invoice).paymentDate!).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                            </>
+                        )}
+                        {(document as Invoice).paymentReference && (
+                            <>
+                                <span className="text-emerald-600">Ref / UTR</span>
+                                <span className="font-bold text-emerald-900">{(document as Invoice).paymentReference}</span>
+                            </>
+                        )}
+                    </div>
+                </div>
+                )}
                 <div>
                     <h4 className="font-bold text-gray-800 text-sm mb-2 uppercase">Terms and Conditions</h4>
                     <div className="text-xs text-gray-500 space-y-1 leading-relaxed">

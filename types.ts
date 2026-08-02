@@ -106,6 +106,8 @@ export interface Invoice {
   items: LineItem[];
   notes?: string;
   comment?: string;
+  paymentReference?: string;
+  paymentDate?: string;
   terms?: string;
   placeOfSupply: string;
   bankDetails?: BankAccount;

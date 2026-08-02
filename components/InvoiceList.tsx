@@ -15,7 +15,7 @@ interface InvoiceListProps {
   userProfile: UserBusinessProfile;
   onEdit: (invoice: Invoice) => void;
   onDuplicate: (invoice: Invoice) => void;
-  onUpdateStatus: (id: string, status: InvoiceStatus) => void;
+  onUpdateStatus: (id: string, status: InvoiceStatus, paymentReference?: string, paymentDate?: string) => void;
   onDelete: (id: string) => void;
   onConvertToDeliveryChallan?: (invoice: Invoice) => void;
 }
@@ -37,6 +37,10 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   const [previewDoc, setPreviewDoc] = useState<Invoice | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkShareData, setBulkShareData] = useState<{ docs: Invoice[], target: 'whatsapp' | 'email' | 'download' | 'drive' } | null>(null);
+  
+  const [paymentModalInvoiceId, setPaymentModalInvoiceId] = useState<string | null>(null);
+  const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [paymentReference, setPaymentReference] = useState<string>('');
 
   // Filtering State
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -421,6 +425,23 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Status Tabs */}
+      <div className="flex space-x-1 bg-gray-100 p-1 rounded-xl mb-4 overflow-x-auto hide-scrollbar">
+        {['All', ...Object.values(InvoiceStatus)].map((statusOption) => {
+          const val = statusOption === 'All' ? '' : statusOption;
+          const isActive = filterStatus === val;
+          return (
+            <button
+              key={statusOption}
+              onClick={() => { setFilterStatus(val); setSelectedIds([]); }}
+              className={`px-4 py-2 text-sm font-bold rounded-lg whitespace-nowrap transition ${isActive ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'}`}
+            >
+              {statusOption === 'All' ? 'All Invoices' : `${statusOption} (${invoices.filter(i => i.status === statusOption).length})`}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filters */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-end">
         <div className="w-full sm:w-auto flex-grow sm:flex-grow-0">
@@ -493,19 +514,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Lifecycle (Status)</label>
-          <select 
-            value={filterStatus} 
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="w-full sm:w-32 p-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-          >
-            <option value="">All Status</option>
-            {Object.values(InvoiceStatus).map(status => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
-        </div>
+
         <div>
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Sort By</label>
           <select 
@@ -658,7 +667,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                       </button>
                       {activeStatusMenuId === inv.id && (
                         <div className="status-menu-container absolute left-0 top-full mt-1 bg-white border border-gray-100 shadow-2xl rounded-xl z-50 py-1 min-w-[120px] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                            <button onClick={() => { onUpdateStatus(inv.id, InvoiceStatus.PAID); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-emerald-50 text-emerald-600 font-bold">Mark Paid</button>
+                            <button onClick={() => { setPaymentModalInvoiceId(inv.id); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-emerald-50 text-emerald-600 font-bold">Mark Paid</button>
                             <button onClick={() => { onUpdateStatus(inv.id, InvoiceStatus.SENT); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-blue-50 text-blue-600 font-bold">Mark Sent</button>
                             <button onClick={() => { onUpdateStatus(inv.id, InvoiceStatus.DRAFT); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-gray-50 text-gray-600 font-bold">Mark Unpaid</button>
                         </div>
@@ -821,6 +830,59 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
               userProfile={userProfile}
               mode="invoice"
           />
+      )}
+
+      {paymentModalInvoiceId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-gray-900">Record Payment</h3>
+              <button onClick={() => { setPaymentModalInvoiceId(null); setPaymentDate(new Date().toISOString().split('T')[0]); setPaymentReference(''); }} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Payment Date</label>
+                <input 
+                  type="date" 
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  className="w-full p-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Reference / UTR Number</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. UTR-123456789"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                  className="w-full p-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button 
+                  onClick={() => { setPaymentModalInvoiceId(null); setPaymentDate(new Date().toISOString().split('T')[0]); setPaymentReference(''); }} 
+                  className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    onUpdateStatus(paymentModalInvoiceId, InvoiceStatus.PAID, paymentReference, paymentDate);
+                    setPaymentModalInvoiceId(null);
+                    setPaymentDate(new Date().toISOString().split('T')[0]);
+                    setPaymentReference('');
+                  }} 
+                  className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition"
+                >
+                  Save Payment
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

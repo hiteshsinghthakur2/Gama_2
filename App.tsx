@@ -291,8 +291,8 @@ const App: React.FC = () => {
     return uniqueItems;
   }, [invoices, quotations, deliveryChallans]);
 
-  const handleUpdateInvoiceStatus = (id: string, status: InvoiceStatus) => {
-    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv));
+  const handleUpdateInvoiceStatus = (id: string, status: InvoiceStatus, paymentReference?: string, paymentDate?: string) => {
+    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status, paymentReference, paymentDate } : inv));
   };
 
   const handleDeleteInvoice = async (id: string) => {
