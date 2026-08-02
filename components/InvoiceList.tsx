@@ -381,12 +381,21 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     // Search Filter
     if (searchQuery) {
         const query = searchQuery.toLowerCase();
+        // Remove commas and currency symbols for numeric search
+        const numericQuery = query.replace(/[,₹]/g, '').trim();
+        
         const client = getClient(inv.clientId, inv);
         const matchNumber = inv.number.toLowerCase().includes(query);
         const matchClient = client && client.name.toLowerCase().includes(query);
         const matchItems = inv.items.some(item => item.description.toLowerCase().includes(query));
+        const matchComment = inv.comment && inv.comment.toLowerCase().includes(query);
         
-        if (!matchNumber && !matchClient && !matchItems) return false;
+        let matchTotal = false;
+        const total = calculateDocumentTotal(inv);
+        // Check exact total, or formatted total string
+        matchTotal = total.toString().includes(numericQuery) || formatCurrency(total).toLowerCase().includes(query);
+        
+        if (!matchNumber && !matchClient && !matchItems && !matchComment && !matchTotal) return false;
     }
 
     return true;
@@ -419,7 +428,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
           <div className="relative">
             <input 
               type="text" 
-              placeholder="Invoice #, Client, Items..."
+              placeholder="Invoice #, Client, Items, Amount..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full sm:w-64 p-2 pl-8 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
