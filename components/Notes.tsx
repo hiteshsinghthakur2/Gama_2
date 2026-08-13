@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Note } from '../types';
+import DaddysNoteEditor from './DaddysNoteEditor';
 
 interface NotesProps {
   notes: Note[];
@@ -12,22 +13,48 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentType, setCurrentType] = useState<'text' | 'daddys_note'>('text');
+  const [currentDocumentUrl, setCurrentDocumentUrl] = useState<string>('');
+  const [currentAnnotations, setCurrentAnnotations] = useState<any[]>([]);
 
-  const handleCreate = () => {
+  const handleCreate = (type: 'text' | 'daddys_note' = 'text') => {
     setSelectedNote(null);
     setTitle('');
     setContent('');
     setIsEditing(true);
+    setCurrentType(type);
+    setCurrentDocumentUrl('');
+    setCurrentAnnotations([]);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCurrentDocumentUrl(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSave = () => {
-    if (!title.trim() && !content.trim()) return;
+    if (!title.trim() && !content.trim() && currentType === 'text') return;
+    if (!title.trim() && currentType === 'daddys_note') return;
 
     const now = new Date().toISOString();
     if (selectedNote) {
       setNotes(prev => prev.map(n => 
         n.id === selectedNote.id 
-          ? { ...n, title: title.trim() || 'Untitled', content, updatedAt: now } 
+          ? { 
+              ...n, 
+              title: title.trim() || 'Untitled', 
+              content, 
+              updatedAt: now,
+              type: currentType,
+              documentUrl: currentDocumentUrl,
+              annotations: currentAnnotations
+            } 
           : n
       ));
     } else {
@@ -36,7 +63,10 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
         title: title.trim() || 'Untitled',
         content,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        type: currentType,
+        documentUrl: currentDocumentUrl,
+        annotations: currentAnnotations
       };
       setNotes(prev => [newNote, ...prev]);
     }
@@ -62,18 +92,24 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
 
   return (
     <div className="flex h-[calc(100vh-100px)] gap-6">
-      {/* Sidebar for Notes */}
       <div className="w-1/3 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 border-b border-gray-100 bg-gray-50 flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <h2 className="font-bold text-gray-800">My Notes</h2>
-            <button 
-              onClick={handleCreate}
-              className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-              title="New Note"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-            </button>
+            <div className="flex gap-2 relative group">
+              <button 
+                onClick={() => handleCreate('text')}
+                className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition shadow-sm text-sm"
+              >
+                + Note
+              </button>
+              <button 
+                onClick={() => handleCreate('daddys_note')}
+                className="px-4 py-2 bg-amber-500 text-white font-bold rounded-lg hover:bg-amber-600 transition shadow-sm text-sm"
+              >
+                + Daddy's Note
+              </button>
+            </div>
           </div>
           <div className="relative">
             <input 
@@ -97,13 +133,21 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
                 onClick={() => {
                   setSelectedNote(note);
                   setTitle(note.title);
-                  setContent(note.content);
+                  setContent(note.content || '');
+                  setCurrentType(note.type || 'text');
+                  setCurrentDocumentUrl(note.documentUrl || '');
+                  setCurrentAnnotations(note.annotations || []);
                   setIsEditing(false);
                 }}
                 className={`p-3 rounded-lg cursor-pointer transition group relative ${selectedNote?.id === note.id ? 'bg-indigo-50 border border-indigo-100' : 'hover:bg-gray-50 border border-transparent'}`}
               >
-                <h3 className={`font-semibold text-sm truncate pr-8 ${selectedNote?.id === note.id ? 'text-indigo-900' : 'text-gray-800'}`}>{note.title}</h3>
-                <p className="text-xs text-gray-500 truncate mt-1">{note.content || 'No content'}</p>
+                <h3 className={`font-semibold text-sm truncate pr-8 ${selectedNote?.id === note.id ? 'text-indigo-900' : 'text-gray-800'}`}>
+                  {note.title}
+                  {note.type === 'daddys_note' && (
+                    <span className="ml-2 inline-block px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] rounded-full uppercase tracking-wider font-bold">Daddy's</span>
+                  )}
+                </h3>
+                <p className="text-xs text-gray-500 truncate mt-1">{note.type === 'daddys_note' ? 'Document attached' : (note.content || 'No content')}</p>
                 <div className="text-[10px] text-gray-400 mt-2">
                   {new Date(note.updatedAt).toLocaleDateString()}
                 </div>
@@ -120,7 +164,6 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
         </div>
       </div>
 
-      {/* Note Editor / Viewer */}
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
         {isEditing ? (
           <div className="flex flex-col h-full">
@@ -129,7 +172,7 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
                 type="text" 
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="Note Title"
+                placeholder={currentType === 'daddys_note' ? "Daddy's Note Title" : "Note Title"}
                 className="text-xl font-bold bg-transparent outline-none flex-1 mr-4 focus:border-b-2 focus:border-indigo-500 transition-colors"
                 autoFocus
               />
@@ -140,6 +183,9 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
                     if (selectedNote) {
                       setTitle(selectedNote.title);
                       setContent(selectedNote.content);
+                      setCurrentType(selectedNote.type || 'text');
+                      setCurrentDocumentUrl(selectedNote.documentUrl || '');
+                      setCurrentAnnotations(selectedNote.annotations || []);
                     } else {
                       setTitle('');
                       setContent('');
@@ -157,34 +203,98 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
                 </button>
               </div>
             </div>
-            <textarea 
-              value={content}
-              onChange={e => setContent(e.target.value)}
-              placeholder="Write your note here... (Invoice references, reminders, etc.)"
-              className="flex-1 p-6 resize-none outline-none text-gray-700 leading-relaxed"
-            />
+            
+            {currentType === 'text' ? (
+              <textarea 
+                value={content}
+                onChange={e => setContent(e.target.value)}
+                placeholder="Write your note here... (Invoice references, reminders, etc.)"
+                className="flex-1 p-6 resize-none outline-none text-gray-700 leading-relaxed"
+              />
+            ) : (
+              <div className="flex-1 flex flex-col p-4 bg-gray-50 overflow-hidden">
+                {!currentDocumentUrl ? (
+                  <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl bg-white m-4">
+                    <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                    <label className="cursor-pointer bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 transition shadow-sm">
+                      Upload Document/Image
+                      <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    </label>
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-hidden rounded-xl border border-gray-200">
+                    <DaddysNoteEditor 
+                      documentUrl={currentDocumentUrl} 
+                      annotations={currentAnnotations} 
+                      onChange={setCurrentAnnotations} 
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : selectedNote ? (
           <div className="flex flex-col h-full">
             <div className="p-6 border-b border-gray-100 flex justify-between items-start">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">{selectedNote.title}</h2>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {selectedNote.title}
+                  {selectedNote.type === 'daddys_note' && (
+                    <span className="ml-3 inline-block px-2 py-0.5 bg-amber-100 text-amber-800 text-[12px] rounded-full uppercase tracking-wider font-bold align-middle">Daddy's Note</span>
+                  )}
+                </h2>
                 <div className="text-xs text-gray-400 mt-2">
                   Last edited: {new Date(selectedNote.updatedAt).toLocaleString()}
                 </div>
               </div>
-              <button 
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-50 border border-indigo-100 rounded-lg transition flex items-center gap-2 shadow-sm"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                Edit
-              </button>
-            </div>
-            <div className="flex-1 p-6 overflow-y-auto">
-              <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {selectedNote.content || <span className="text-gray-400 italic">No content</span>}
+              <div className="flex gap-2">
+                {selectedNote.type === 'daddys_note' && (
+                  <button 
+                    onClick={() => {
+                      const url = window.location.origin + window.location.pathname + '?sharedNote=' + selectedNote.id;
+                      navigator.clipboard.writeText(url);
+                      alert('Share link copied to clipboard!');
+                    }}
+                    className="px-4 py-2 text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition flex items-center gap-2 shadow-sm"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                    Share Link
+                  </button>
+                )}
+                <button 
+                  onClick={() => {
+                    setIsEditing(true);
+                    setCurrentType(selectedNote.type || 'text');
+                    setCurrentDocumentUrl(selectedNote.documentUrl || '');
+                    setCurrentAnnotations(selectedNote.annotations || []);
+                  }}
+                  className="px-4 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-50 border border-indigo-100 rounded-lg transition flex items-center gap-2 shadow-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                  Edit
+                </button>
               </div>
+            </div>
+            
+            <div className="flex-1 overflow-hidden flex flex-col bg-gray-50">
+              {selectedNote.type === 'daddys_note' && selectedNote.documentUrl ? (
+                <div className="flex-1 p-4">
+                  <div className="w-full h-full rounded-xl border border-gray-200 overflow-hidden">
+                    <DaddysNoteEditor 
+                      documentUrl={selectedNote.documentUrl} 
+                      annotations={selectedNote.annotations || []} 
+                      onChange={() => {}} 
+                      readOnly={true}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 p-6 overflow-y-auto">
+                  <div className="text-gray-700 leading-relaxed whitespace-pre-wrap bg-white p-6 rounded-xl border border-gray-100 shadow-sm min-h-full">
+                    {selectedNote.content || <span className="text-gray-400 italic">No content</span>}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -192,7 +302,7 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
             <svg className="w-16 h-16 mb-4 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             <p className="text-sm">Select a note or create a new one</p>
             <button 
-              onClick={handleCreate}
+              onClick={() => handleCreate('text')}
               className="mt-6 px-4 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-50 border border-indigo-100 rounded-lg transition shadow-sm"
             >
               Create First Note

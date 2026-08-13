@@ -25,6 +25,7 @@ import ClientList from './components/ClientList';
 import Sidebar from './components/Sidebar';
 import Settings from './components/Settings';
 import Notes from './components/Notes';
+import SharedDaddysNote from './components/SharedDaddysNote';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import UserProfile from './components/UserProfile';
@@ -1001,6 +1002,12 @@ const App: React.FC = () => {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
+  }
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const sharedNoteId = urlParams.get('sharedNote');
+  if (sharedNoteId) {
+    return <SharedDaddysNote noteId={sharedNoteId} />;
   }
 
   return (

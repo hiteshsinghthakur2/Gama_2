@@ -210,6 +210,9 @@ export interface Note {
   id: string;
   title: string;
   content: string;
+  type?: 'text' | 'daddys_note';
+  documentUrl?: string;
+  annotations?: any[];
   createdAt: string;
   updatedAt: string;
 }
