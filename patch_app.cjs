@@ -1,65 +1,43 @@
 const fs = require('fs');
-let app = fs.readFileSync('App.tsx', 'utf-8');
+let content = fs.readFileSync('App.tsx', 'utf-8');
 
-app = app.replace(
-  `const handleDeleteInvoice = (id: string) => {
-    if (window.confirm('Delete this invoice?')) setInvoices(prev => prev.filter(inv => inv.id !== id));
-  };`,
-  `const handleDeleteInvoice = async (id: string) => {
-    if (window.confirm('Move this invoice to trash?')) {
-      const inv = invoices.find(i => i.id === id);
-      if (inv) {
-        await TrashStorageService.moveToTrash({ type: 'invoice', data: inv, summary: 'Invoice ' + inv.number, originalId: inv.id });
-        setInvoices(prev => prev.filter(i => i.id !== id));
-      }
-    }
-  };
+// Add Note to types import
+content = content.replace(/import \{([^}]+)\} from '\.\/types';/, function(match, p1) {
+  if (!p1.includes('Note')) {
+    return 'import {' + p1 + ', Note} from "./types";';
+  }
+  return match;
+});
 
-  const handleDeleteQuotation = async (id: string) => {
-    if (window.confirm('Move this quotation to trash?')) {
-      const q = quotations.find(i => i.id === id);
-      if (q) {
-        await TrashStorageService.moveToTrash({ type: 'quotation', data: q, summary: 'Quotation ' + q.number, originalId: q.id });
-        setQuotations(prev => prev.filter(i => i.id !== id));
-      }
-    }
-  };
+// Add Notes component import
+if (!content.includes('import Notes from')) {
+  content = content.replace(/import Settings from '\.\/components\/Settings';/, "import Settings from './components/Settings';\nimport Notes from './components/Notes';");
+}
 
-  const handleDeleteDeliveryChallan = async (id: string) => {
-    if (window.confirm('Move this delivery challan to trash?')) {
-      const dc = deliveryChallans.find(i => i.id === id);
-      if (dc) {
-        await TrashStorageService.moveToTrash({ type: 'delivery_challan', data: dc, summary: 'Challan ' + dc.number, originalId: dc.id });
-        setDeliveryChallans(prev => prev.filter(i => i.id !== id));
-      }
-    }
-  };
+// Add state for notes
+if (!content.includes('const [notes, setNotes] = useState<Note[]>(')) {
+  content = content.replace(/const \[clients, setClients\] = useState<Client\[\]>\(\[\]\);/, "const [clients, setClients] = useState<Client[]>([]);\n  const [notes, setNotes] = useState<Note[]>([]);");
+}
 
-  const handleDeleteClient = async (id: string) => {
-    if (window.confirm('Move this client to trash?')) {
-      const c = clients.find(i => i.id === id);
-      if (c) {
-        await TrashStorageService.moveToTrash({ type: 'client', data: c, summary: 'Client ' + c.name, originalId: c.id });
-        setClients(prev => prev.filter(i => i.id !== id));
-      }
-    }
-  };
-`
-);
+// Ensure the local storage load logic is updated
+const loadStateCode = "        if (savedData.userProfile) setUserProfile(savedData.userProfile);";
+const loadStateReplacement = "        if (savedData.userProfile) setUserProfile(savedData.userProfile);\n        if (savedData.notes) setNotes(savedData.notes);";
+if (!content.includes('if (savedData.notes) setNotes')) {
+  content = content.replace(loadStateCode, loadStateReplacement);
+}
 
-app = app.replace(
-  `onDelete={(id) => setQuotations(prev => prev.filter(q => q.id !== id))}`,
-  `onDelete={handleDeleteQuotation}`
-);
+// Ensure local storage save logic is updated
+const saveStateCode = "      await LocalStorageService.saveData({ invoices, quotations, deliveryChallans, clients, purchases, leads, userProfile });";
+const saveStateReplacement = "      await LocalStorageService.saveData({ invoices, quotations, deliveryChallans, clients, purchases, leads, userProfile, notes });";
+if (!content.includes('notes }')) {
+  content = content.replace(saveStateCode, saveStateReplacement);
+}
 
-app = app.replace(
-  `onDelete={(id) => setDeliveryChallans(prev => prev.filter(dc => dc.id !== id))}`,
-  `onDelete={handleDeleteDeliveryChallan}`
-);
+// Add Notes tab case in renderContent
+const notesCase = "      case 'notes':\n        return <Notes notes={notes} setNotes={setNotes} />;";
+if (!content.includes("case 'notes':")) {
+  content = content.replace(/      case 'settings':/, notesCase + "\n      case 'settings':");
+}
 
-app = app.replace(
-  `onDelete={(id) => setClients(prev => prev.filter(c => c.id !== id))}`,
-  `onDelete={handleDeleteClient}`
-);
-
-fs.writeFileSync('App.tsx', app);
+fs.writeFileSync('App.tsx', content);
+console.log('Patched App.tsx');

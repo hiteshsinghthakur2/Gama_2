@@ -12,7 +12,7 @@ import {
   Client, 
   UserBusinessProfile,
   AppUser
-} from './types';
+, Note} from "./types";
 import { INITIAL_USER_PROFILE, INDIAN_STATES } from './constants';
 import { StorageService } from './services/StorageService';
 import Dashboard from './components/Dashboard';
@@ -24,6 +24,7 @@ import LeadBoard from './components/LeadBoard';
 import ClientList from './components/ClientList';
 import Sidebar from './components/Sidebar';
 import Settings from './components/Settings';
+import Notes from './components/Notes';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import UserProfile from './components/UserProfile';
@@ -45,6 +46,7 @@ const STORAGE_KEYS = {
   LEADS: 'bos_cloud_leads',
   CLIENTS: 'bos_cloud_clients',
   PROFILE: 'bos_cloud_user_profile',
+  NOTES: 'bos_cloud_notes',
   USERS: 'bos_cloud_users'
 };
 
@@ -111,6 +113,7 @@ const App: React.FC = () => {
   const [deliveryChallans, setDeliveryChallans] = useState<DeliveryChallan[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
 
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
@@ -208,6 +211,7 @@ const App: React.FC = () => {
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.LEADS, leads); }, [leads, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.CLIENTS, clients); }, [clients, isLoading]);
   useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.PROFILE, userProfile); }, [userProfile, isLoading]);
+  useEffect(() => { if (!isLoading) StorageService.save(STORAGE_KEYS.NOTES, notes); }, [notes, isLoading]);
 
   // --- Helper to initialize placeOfSupply correctly based on first client ---
   const getInitialPlaceOfSupply = (clientId: string) => {
@@ -954,6 +958,8 @@ const App: React.FC = () => {
           <PurchaseArchive />
         </div>
       );
+      case 'notes':
+        return <Notes notes={notes} setNotes={setNotes} />;
       case 'settings': return <Settings profile={userProfile} onSave={setUserProfile} />;
       case 'users': return (
         <UserManagement 
