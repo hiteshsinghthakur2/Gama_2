@@ -68,7 +68,7 @@ interface DocumentFormProps {
   onCancel: () => void;
   initialData?: Invoice | Quotation | DeliveryChallan;
   mode?: 'invoice' | 'quotation' | 'delivery-challan';
-  onConvertToInvoice?: (quotation: Quotation) => void;
+  onConvertToInvoice?: (document: any) => void;
   existingInvoices?: Invoice[];
   pastItems?: LineItem[];
   onSaveClient?: (client: Client) => void;
@@ -551,7 +551,7 @@ const InvoiceForm: React.FC<DocumentFormProps> = ({
               </button>
               <div className="flex gap-3">
                   {/* Convert to Invoice Button (Only in Quotation Mode) */}
-                  {isQuotation && onConvertToInvoice && (
+                  {(isQuotation || mode === 'delivery-challan') && onConvertToInvoice && (
                     <button 
                         type="button"
                         onClick={handleConversion} 

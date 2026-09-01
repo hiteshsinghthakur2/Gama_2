@@ -16,6 +16,7 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
   const [currentType, setCurrentType] = useState<'text' | 'daddys_note'>('text');
   const [currentDocumentUrl, setCurrentDocumentUrl] = useState<string>('');
   const [currentAnnotations, setCurrentAnnotations] = useState<any[]>([]);
+  const [showShareLink, setShowShareLink] = useState<string | null>(null);
 
   const handleCreate = (type: 'text' | 'daddys_note' = 'text') => {
     setSelectedNote(null);
@@ -40,7 +41,7 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
 
   const handleSave = () => {
     if (!title.trim() && !content.trim() && currentType === 'text') return;
-    if (!title.trim() && currentType === 'daddys_note') return;
+    if (!title.trim() && !currentDocumentUrl && currentType === 'daddys_note') return;
 
     const now = new Date().toISOString();
     if (selectedNote) {
@@ -252,8 +253,15 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
                   <button 
                     onClick={() => {
                       const url = window.location.origin + window.location.pathname + '?sharedNote=' + selectedNote.id;
-                      navigator.clipboard.writeText(url);
-                      alert('Share link copied to clipboard!');
+                      try {
+                        navigator.clipboard.writeText(url).then(() => {
+                          setShowShareLink(url);
+                        }).catch(() => {
+                          setShowShareLink(url);
+                        });
+                      } catch(e) {
+                        setShowShareLink(url);
+                      }
                     }}
                     className="px-4 py-2 text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition flex items-center gap-2 shadow-sm"
                   >
@@ -310,8 +318,33 @@ const Notes: React.FC<NotesProps> = ({ notes, setNotes }) => {
           </div>
         )}
       </div>
+
+      {showShareLink && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Share Daddy's Note</h3>
+            <p className="text-sm text-gray-500 mb-4">Anyone with this link can view and annotate this note.</p>
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                readOnly 
+                value={showShareLink} 
+                className="flex-1 p-2 border border-gray-300 rounded-lg bg-gray-50 text-sm focus:outline-none"
+                onClick={e => (e.target as HTMLInputElement).select()}
+              />
+              <button 
+                onClick={() => setShowShareLink(null)}
+                className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
 
 export default Notes;

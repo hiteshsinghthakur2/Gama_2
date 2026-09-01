@@ -15,6 +15,7 @@ interface DeliveryChallanListProps {
   onDuplicate: (challan: DeliveryChallan) => void;
   onUpdateStatus: (id: string, status: DeliveryChallanStatus) => void;
   onDelete: (id: string) => void;
+  onConvertToInvoice: (challan: DeliveryChallan) => void;
 }
 
 const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
@@ -25,7 +26,8 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
   onEdit, 
   onDuplicate, 
   onUpdateStatus,
-  onDelete 
+  onDelete,
+  onConvertToInvoice 
 }) => {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [activeStatusMenuId, setActiveStatusMenuId] = useState<string | null>(null);
@@ -341,6 +343,13 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
                               >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                   Edit
+                              </button>
+                              <button 
+                                onClick={() => { onConvertToInvoice(challan); setActiveMenuId(null); }} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                  Convert to Invoice
                               </button>
                               <button 
                                 onClick={() => handleShare(challan, 'download')} 

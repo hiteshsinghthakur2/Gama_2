@@ -1,43 +1,84 @@
 const fs = require('fs');
 let content = fs.readFileSync('App.tsx', 'utf-8');
 
-// Add Note to types import
-content = content.replace(/import \{([^}]+)\} from '\.\/types';/, function(match, p1) {
-  if (!p1.includes('Note')) {
-    return 'import {' + p1 + ', Note} from "./types";';
-  }
-  return match;
-});
+const handleConvertToInvoiceOld = `  const handleConvertToInvoice = (quotation: Quotation) => {
+    let newNumber = \`CD\${new Date().getFullYear()}\${Math.floor(1000 + Math.random() * 9000)}\`;
+    if (userProfile.invoiceSequence) {
+      const seq = userProfile.invoiceSequence;
+      const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
+      newNumber = \`\${seq.prefix || ''}\${seq.suffix || ''}\${paddedNumber}\`;
+    }
 
-// Add Notes component import
-if (!content.includes('import Notes from')) {
-  content = content.replace(/import Settings from '\.\/components\/Settings';/, "import Settings from './components/Settings';\nimport Notes from './components/Notes';");
-}
+    const newInvoice: Invoice = {
+      id: \`inv-\${Date.now()}\`,
+      number: newNumber,
+      date: new Date().toISOString().split('T')[0],
+      dueDate: quotation.validUntil || '',
+      poNumber: '',
+      status: InvoiceStatus.DRAFT,
+      clientId: quotation.clientId,
+      clientDetails: quotation.clientDetails,
+      items: quotation.items.map(item => ({...item})),
+      notes: quotation.notes,
+      terms: quotation.terms || userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\\n2. Payment within due date.',
+      placeOfSupply: quotation.placeOfSupply,
+      bankDetails: quotation.bankDetails,
+      customFields: quotation.customFields || [],
+      discountType: quotation.discountType,
+      discountValue: quotation.discountValue,
+      additionalCharges: quotation.additionalCharges,
+      roundOff: quotation.roundOff,
+      showBankDetails: quotation.showBankDetails
+    };
 
-// Add state for notes
-if (!content.includes('const [notes, setNotes] = useState<Note[]>(')) {
-  content = content.replace(/const \[clients, setClients\] = useState<Client\[\]>\(\[\]\);/, "const [clients, setClients] = useState<Client[]>([]);\n  const [notes, setNotes] = useState<Note[]>([]);");
-}
+    setActiveTab('invoices');
+    setEditingInvoice(newInvoice);
+    setEditingQuotation(null);
+  };`;
 
-// Ensure the local storage load logic is updated
-const loadStateCode = "        if (savedData.userProfile) setUserProfile(savedData.userProfile);";
-const loadStateReplacement = "        if (savedData.userProfile) setUserProfile(savedData.userProfile);\n        if (savedData.notes) setNotes(savedData.notes);";
-if (!content.includes('if (savedData.notes) setNotes')) {
-  content = content.replace(loadStateCode, loadStateReplacement);
-}
+const handleConvertToInvoiceNew = `  const handleConvertToInvoice = (source: Quotation | DeliveryChallan) => {
+    let newNumber = \`CD\${new Date().getFullYear()}\${Math.floor(1000 + Math.random() * 9000)}\`;
+    if (userProfile.invoiceSequence) {
+      const seq = userProfile.invoiceSequence;
+      const paddedNumber = seq.nextNumber.toString().padStart(seq.padding || 0, '0');
+      newNumber = \`\${seq.prefix || ''}\${seq.suffix || ''}\${paddedNumber}\`;
+    }
 
-// Ensure local storage save logic is updated
-const saveStateCode = "      await LocalStorageService.saveData({ invoices, quotations, deliveryChallans, clients, purchases, leads, userProfile });";
-const saveStateReplacement = "      await LocalStorageService.saveData({ invoices, quotations, deliveryChallans, clients, purchases, leads, userProfile, notes });";
-if (!content.includes('notes }')) {
-  content = content.replace(saveStateCode, saveStateReplacement);
-}
+    const newInvoice: Invoice = {
+      id: \`inv-\${Date.now()}\`,
+      number: newNumber,
+      date: new Date().toISOString().split('T')[0],
+      dueDate: ('validUntil' in source ? source.validUntil : undefined) || '',
+      poNumber: '',
+      status: InvoiceStatus.DRAFT,
+      clientId: source.clientId,
+      clientDetails: source.clientDetails,
+      items: source.items.map(item => ({...item})),
+      notes: source.notes,
+      terms: source.terms || userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\\n2. Payment within due date.',
+      placeOfSupply: source.placeOfSupply,
+      bankDetails: ('bankDetails' in source ? source.bankDetails : undefined) || undefined,
+      customFields: source.customFields || [],
+      discountType: ('discountType' in source ? source.discountType : undefined),
+      discountValue: ('discountValue' in source ? source.discountValue : undefined),
+      additionalCharges: source.additionalCharges,
+      roundOff: ('roundOff' in source ? source.roundOff : undefined),
+      showBankDetails: ('showBankDetails' in source ? source.showBankDetails : undefined)
+    };
 
-// Add Notes tab case in renderContent
-const notesCase = "      case 'notes':\n        return <Notes notes={notes} setNotes={setNotes} />;";
-if (!content.includes("case 'notes':")) {
-  content = content.replace(/      case 'settings':/, notesCase + "\n      case 'settings':");
-}
+    setActiveTab('invoices');
+    setEditingInvoice(newInvoice);
+    setEditingQuotation(null);
+    setEditingDeliveryChallan(null);
+  };`;
+
+content = content.replace(handleConvertToInvoiceOld, handleConvertToInvoiceNew);
+
+// Now find where editingDeliveryChallan is used and pass onConvertToInvoice
+// <InvoiceForm pastItems={pastItems} mode="delivery-challan" userProfile={userProfile} clients={clients} onSave={handleSaveDeliveryChallan} onCancel={() => setEditingDeliveryChallan(null)} initialData={editingDeliveryChallan} onEditClient={(client) => { setEditingClient(client); setActiveTab('clients'); }} onSaveClient={handleSaveClient} />
+content = content.replace(
+  'initialData={editingDeliveryChallan} onEditClient=',
+  'initialData={editingDeliveryChallan} onConvertToInvoice={handleConvertToInvoice} onEditClient='
+);
 
 fs.writeFileSync('App.tsx', content);
-console.log('Patched App.tsx');

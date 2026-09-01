@@ -388,7 +388,7 @@ const App: React.FC = () => {
     });
   };
 
-  const handleConvertToInvoice = (quotation: Quotation) => {
+  const handleConvertToInvoice = (source: Quotation | DeliveryChallan) => {
     let newNumber = `CD${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
     if (userProfile.invoiceSequence) {
       const seq = userProfile.invoiceSequence;
@@ -400,27 +400,28 @@ const App: React.FC = () => {
       id: `inv-${Date.now()}`,
       number: newNumber,
       date: new Date().toISOString().split('T')[0],
-      dueDate: quotation.validUntil || '',
+      dueDate: ('validUntil' in source ? source.validUntil : undefined) || '',
       poNumber: '',
       status: InvoiceStatus.DRAFT,
-      clientId: quotation.clientId,
-      clientDetails: quotation.clientDetails,
-      items: quotation.items.map(item => ({...item})),
-      notes: quotation.notes,
-      terms: quotation.terms || userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.',
-      placeOfSupply: quotation.placeOfSupply,
-      bankDetails: quotation.bankDetails,
-      customFields: quotation.customFields || [],
-      discountType: quotation.discountType,
-      discountValue: quotation.discountValue,
-      additionalCharges: quotation.additionalCharges,
-      roundOff: quotation.roundOff,
-      showBankDetails: quotation.showBankDetails
+      clientId: source.clientId,
+      clientDetails: source.clientDetails,
+      items: source.items.map(item => ({...item})),
+      notes: source.notes,
+      terms: source.terms || userProfile.defaultInvoiceTerms || '1. Subject to local jurisdiction.\n2. Payment within due date.',
+      placeOfSupply: source.placeOfSupply,
+      bankDetails: ('bankDetails' in source ? source.bankDetails : undefined) || undefined,
+      customFields: source.customFields || [],
+      discountType: ('discountType' in source ? source.discountType : undefined),
+      discountValue: ('discountValue' in source ? source.discountValue : undefined),
+      additionalCharges: source.additionalCharges,
+      roundOff: ('roundOff' in source ? source.roundOff : undefined),
+      showBankDetails: ('showBankDetails' in source ? source.showBankDetails : undefined)
     };
 
     setActiveTab('invoices');
     setEditingInvoice(newInvoice);
     setEditingQuotation(null);
+    setEditingDeliveryChallan(null);
   };
 
   const handleConvertToDeliveryChallan = (invoice: Invoice) => {
@@ -900,7 +901,7 @@ const App: React.FC = () => {
           </div>
         );
       case 'delivery-challans':
-        if (editingDeliveryChallan) return <InvoiceForm pastItems={pastItems} mode="delivery-challan" userProfile={userProfile} clients={clients} onSave={handleSaveDeliveryChallan} onCancel={() => setEditingDeliveryChallan(null)} initialData={editingDeliveryChallan} onEditClient={(client) => { setEditingClient(client); setActiveTab('clients'); }} onSaveClient={handleSaveClient} />;
+        if (editingDeliveryChallan) return <InvoiceForm pastItems={pastItems} mode="delivery-challan" userProfile={userProfile} clients={clients} onSave={handleSaveDeliveryChallan} onCancel={() => setEditingDeliveryChallan(null)} initialData={editingDeliveryChallan} onConvertToInvoice={handleConvertToInvoice} onEditClient={(client) => { setEditingClient(client); setActiveTab('clients'); }} onSaveClient={handleSaveClient} />;
         return (
           <div className="p-4 md:p-6 lg:p-8">
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -934,7 +935,7 @@ const App: React.FC = () => {
                 New Challan
               </button>
             </div>
-            <DeliveryChallanList onUpdateComment={handleUpdateChallanComment} challans={deliveryChallans} clients={clients} userProfile={userProfile} onEdit={setEditingDeliveryChallan} onDuplicate={(dc) => setDeliveryChallans([{...dc, id: `dc-${Date.now()}`, number: `COPY-${dc.number}`}, ...deliveryChallans])} onUpdateStatus={(id, status) => setDeliveryChallans(prev => prev.map(dc => dc.id === id ? {...dc, status} : dc))} onDelete={handleDeleteDeliveryChallan} />
+            <DeliveryChallanList onUpdateComment={handleUpdateChallanComment} challans={deliveryChallans} clients={clients} userProfile={userProfile} onEdit={setEditingDeliveryChallan} onDuplicate={(dc) => setDeliveryChallans([{...dc, id: `dc-${Date.now()}`, number: `COPY-${dc.number}`}, ...deliveryChallans])} onUpdateStatus={(id, status) => setDeliveryChallans(prev => prev.map(dc => dc.id === id ? {...dc, status} : dc))} onDelete={handleDeleteDeliveryChallan} onConvertToInvoice={handleConvertToInvoice} />
           </div>
         );
       case 'leads': return <LeadBoard leads={leads} setLeads={setLeads} />;
