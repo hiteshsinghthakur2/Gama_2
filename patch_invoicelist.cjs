@@ -1,94 +1,88 @@
 const fs = require('fs');
-let file = fs.readFileSync('components/InvoiceList.tsx', 'utf-8');
+let content = fs.readFileSync('components/InvoiceList.tsx', 'utf-8');
 
-file = file.replace(
-  `const [shareData, setShareData] = useState<{ doc: Invoice, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' } | null>(null);`,
-  `const [shareData, setShareData] = useState<{ doc: Invoice, client: Client | undefined, target: 'whatsapp' | 'email' | 'download' | 'drive' } | null>(null);`
-);
-
-file = file.replace(
-  `const [bulkShareData, setBulkShareData] = useState<{ docs: Invoice[], target: 'whatsapp' | 'email' | 'download' } | null>(null);`,
-  `const [bulkShareData, setBulkShareData] = useState<{ docs: Invoice[], target: 'whatsapp' | 'email' | 'download' | 'drive' } | null>(null);`
-);
-
-file = file.replace(
-  `const handleShare = (inv: Invoice, target: 'whatsapp' | 'email' | 'download') => {`,
-  `const handleShare = (inv: Invoice, target: 'whatsapp' | 'email' | 'download' | 'drive') => {`
-);
-
-file = file.replace(
-  `const handleBulkShare = (target: 'whatsapp' | 'email' | 'download') => {`,
-  `const handleBulkShare = (target: 'whatsapp' | 'email' | 'download' | 'drive') => {`
-);
-
-// We need to add the import for uploadFileToDrive at the top
-if (!file.includes('uploadFileToDrive')) {
-  file = file.replace(
-    `import { formatCurrency, calculateDocumentTotal } from '../services/Calculations';`,
-    `import { formatCurrency, calculateDocumentTotal } from '../services/Calculations';\nimport { uploadFileToDrive } from '../services/GoogleDriveService';`
-  );
+// add imports
+if (!content.includes("import * as XLSX")) {
+    content = content.replace("import React, { useState, useEffect, useMemo } from 'react';", 
+    "import React, { useState, useEffect, useMemo } from 'react';\nimport * as XLSX from 'xlsx';\nimport jsPDF from 'jspdf';\nimport autoTable from 'jspdf-autotable';");
 }
 
-// Add the 'drive' case in generateAndShare inside useEffect
-file = file.replace(
-  `} else if (shareData.target === 'whatsapp') {`,
-  `} else if (shareData.target === 'drive') {
-                    try {
-                        await uploadFileToDrive(file, 'CraftDaddy Invoices');
-                        alert(\`Invoice \${shareData.doc.number} saved to Google Drive successfully!\`);
-                    } catch (e: any) {
-                        console.error('Drive upload error:', e);
-                        alert(\`Failed to save to Google Drive: \${e.message}\`);
-                    }
-                } else if (shareData.target === 'whatsapp') {`
-);
+// add functions
+const functionsToAdd = `
+  const handleExportExcelReport = () => {
+    const docs = invoices.filter(inv => selectedIds.includes(inv.id));
+    if (docs.length === 0) return;
 
-// Add the 'drive' case in generateBulkAndShare inside useEffect
-file = file.replace(
-  `if (bulkShareData.target === 'download') {
-                    zip.generateAsync({ type: 'blob' }).then(content => {`,
-  `if (bulkShareData.target === 'drive') {
-                    zip.generateAsync({ type: 'blob' }).then(async content => {
-                        const zipFile = new File([content], 'Bulk_Invoices.zip', { type: 'application/zip' });
-                        try {
-                            await uploadFileToDrive(zipFile, 'CraftDaddy Invoices');
-                            alert('Bulk invoices saved to Google Drive successfully!');
-                        } catch (e: any) {
-                            console.error('Drive upload error:', e);
-                            alert(\`Failed to save bulk invoices to Google Drive: \${e.message}\`);
-                        }
-                    });
-                } else if (bulkShareData.target === 'download') {
-                    zip.generateAsync({ type: 'blob' }).then(content => {`
-);
+    const data = docs.map(inv => ({
+      'Invoice No': inv.number,
+      'Date': inv.date,
+      'Due Date': inv.dueDate,
+      'Client': getClient(inv.clientId, inv)?.name || 'Unknown',
+      'Status': inv.status,
+      'Total Amount': calculateDocumentTotal(inv),
+    }));
 
-// Add the UI button for 'drive' in single item
-file = file.replace(
-  `<button 
-                                onClick={() => handleShare(inv, 'download')} 
-                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
-                              >`,
-  `<button 
-                                onClick={() => handleShare(inv, 'drive')} 
-                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
-                              >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
-                                  Save to Drive
-                              </button>
-                              <button 
-                                onClick={() => handleShare(inv, 'download')} 
-                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-bold transition"
-                              >`
-);
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Invoices Report");
+    XLSX.writeFile(wb, \`Invoices_Report_\${new Date().toISOString().split('T')[0]}.xlsx\`);
+  };
 
-// Add the UI button for bulk
-file = file.replace(
-  `<button onClick={() => handleBulkShare('download')} className="px-3 py-1.5 bg-white text-gray-700 text-xs font-bold rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 flex items-center gap-2 transition">`,
-  `<button onClick={() => handleBulkShare('drive')} className="px-3 py-1.5 bg-white text-indigo-700 text-xs font-bold rounded-lg shadow-sm border border-indigo-200 hover:bg-indigo-50 flex items-center gap-2 transition">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
-                            Save to Drive
-                        </button>
-                        <button onClick={() => handleBulkShare('download')} className="px-3 py-1.5 bg-white text-gray-700 text-xs font-bold rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 flex items-center gap-2 transition">`
-);
+  const handleExportPDFReport = () => {
+    const docs = invoices.filter(inv => selectedIds.includes(inv.id));
+    if (docs.length === 0) return;
 
-fs.writeFileSync('components/InvoiceList.tsx', file);
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text('Invoices Report', 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(\`Generated on: \${new Date().toLocaleDateString()}\`, 14, 30);
+    doc.text(\`Total Invoices: \${docs.length}\`, 14, 36);
+
+    const totalAmount = docs.reduce((sum, inv) => sum + calculateDocumentTotal(inv), 0);
+    doc.text(\`Total Amount: \${formatCurrency(totalAmount)}\`, 14, 42);
+
+    const tableColumn = ["Invoice No", "Date", "Client", "Status", "Amount"];
+    const tableRows = docs.map(inv => [
+      inv.number,
+      inv.date,
+      getClient(inv.clientId, inv)?.name || 'Unknown',
+      inv.status,
+      formatCurrency(calculateDocumentTotal(inv))
+    ]);
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 50,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229] },
+    });
+
+    doc.save(\`Invoices_Report_\${new Date().toISOString().split('T')[0]}.pdf\`);
+  };
+`;
+
+if (!content.includes('handleExportExcelReport')) {
+    content = content.replace("const handleBulkShare", functionsToAdd + "\n  const handleBulkShare");
+}
+
+// Add UI buttons
+const uiToAdd = `
+                <button onClick={handleExportExcelReport} className="px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-green-700 flex items-center gap-2 transition">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Report (Excel)
+                </button>
+                <button onClick={handleExportPDFReport} className="px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-red-700 flex items-center gap-2 transition">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Report (PDF)
+                </button>
+`;
+
+if (!content.includes('Report (Excel)')) {
+    content = content.replace('<button onClick={() => handleBulkShare(\'drive\')}', uiToAdd + '                <button onClick={() => handleBulkShare(\'drive\')}');
+}
+
+fs.writeFileSync('components/InvoiceList.tsx', content);

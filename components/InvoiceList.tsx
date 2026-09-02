@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Invoice, Client, InvoiceStatus, UserBusinessProfile } from '../types';
 import { formatCurrency, calculateDocumentTotal } from '../services/Calculations';
 import { uploadFileToDrive } from '../services/GoogleDriveService';
@@ -85,6 +88,69 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   const handleShare = (inv: Invoice, target: 'whatsapp' | 'email' | 'download' | 'drive') => {
     setShareData({ doc: inv, client: getClient(inv.clientId, inv), target });
     setActiveMenuId(null);
+  };
+
+  
+  const handleExportExcelReport = () => {
+    const docs = invoices.filter(inv => selectedIds.includes(inv.id));
+    if (docs.length === 0) return;
+
+    const data = docs.map((inv, index) => ({
+      'S.No': index + 1,
+      'Invoice No': inv.number,
+      'Date': inv.date,
+      'Comment': inv.comment || '',
+      'Client': getClient(inv.clientId, inv)?.name || 'Unknown',
+      'Status': inv.status,
+      'Amount': calculateDocumentTotal(inv),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Invoices Report");
+    XLSX.writeFile(wb, `Invoices_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleExportPDFReport = () => {
+    const docs = invoices.filter(inv => selectedIds.includes(inv.id));
+    if (docs.length === 0) return;
+
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text('Invoices Report', 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+    doc.text(`Total Invoices: ${docs.length}`, 14, 36);
+
+    const totalAmount = docs.reduce((sum, inv) => sum + calculateDocumentTotal(inv), 0);
+    doc.text(`Total Amount: Rs. ${totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 14, 42);
+
+    const tableColumn = ["S.No", "Invoice No", "Date", "Comment", "Client", "Status", "Amount"];
+    const tableRows = docs.map((inv, index) => [
+      index + 1,
+      inv.number,
+      inv.date,
+      inv.comment || '',
+      getClient(inv.clientId, inv)?.name || 'Unknown',
+      inv.status,
+      `Rs. ${calculateDocumentTotal(inv).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    ]);
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 50,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229] },
+      columnStyles: {
+        0: { halign: 'center' },
+        6: { halign: 'right' }
+      }
+    });
+
+    doc.save(`Invoices_Report_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const handleBulkShare = (target: 'whatsapp' | 'email' | 'download' | 'drive') => {
@@ -564,6 +630,15 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex justify-between items-center animate-in fade-in slide-in-from-top-2">
             <span className="text-indigo-800 font-bold text-sm px-3">{selectedIds.length} invoice(s) selected</span>
             <div className="flex gap-2">
+                
+                <button onClick={handleExportExcelReport} className="px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-green-700 flex items-center gap-2 transition">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Report (Excel)
+                </button>
+                <button onClick={handleExportPDFReport} className="px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-red-700 flex items-center gap-2 transition">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Report (PDF)
+                </button>
                 <button onClick={() => handleBulkShare('drive')} className="px-3 py-1.5 bg-white text-indigo-700 text-xs font-bold rounded-lg shadow-sm border border-indigo-200 hover:bg-indigo-50 flex items-center gap-2 transition">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
                             Save to Drive
