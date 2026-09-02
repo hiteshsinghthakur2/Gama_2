@@ -36,7 +36,7 @@ const Dashboard: React.FC<DashboardProps> = ({ invoices, leads }) => {
     const rev = paid.reduce((sum, inv) => sum + calculateDocumentTotal(inv), 0);
 
     const out = targetInvoices
-      .filter(inv => [InvoiceStatus.SENT, InvoiceStatus.OVERDUE, InvoiceStatus.DRAFT].includes(inv.status))
+      .filter(inv => [InvoiceStatus.SENT, InvoiceStatus.OVERDUE, InvoiceStatus.DRAFT, InvoiceStatus.UNPAID].includes(inv.status))
       .reduce((sum, inv) => sum + calculateDocumentTotal(inv), 0);
 
     let cd: {name: string, sales: number}[] = [];

@@ -286,6 +286,7 @@ const Tools: React.FC<ToolsProps> = ({ invoices, clients, userProfile }) => {
                   <option value="">Choose a status...</option>
                   <option value="Draft">Draft</option>
                   <option value="Sent">Sent</option>
+                  <option value="Unpaid">Unpaid</option>
                   <option value="Paid">Paid</option>
                   <option value="Overdue">Overdue</option>
                 </select>

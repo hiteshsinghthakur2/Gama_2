@@ -75,6 +75,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
     switch (status) {
       case InvoiceStatus.PAID: return 'bg-emerald-100 text-emerald-700';
       case InvoiceStatus.SENT: return 'bg-blue-100 text-blue-700';
+      case InvoiceStatus.UNPAID: return 'bg-orange-100 text-orange-700';
       case InvoiceStatus.OVERDUE: return 'bg-red-100 text-red-700';
       case InvoiceStatus.DRAFT: return 'bg-gray-100 text-gray-700';
       default: return 'bg-gray-100 text-gray-700';
@@ -669,7 +670,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                         <div className="status-menu-container absolute left-0 top-full mt-1 bg-white border border-gray-100 shadow-2xl rounded-xl z-50 py-1 min-w-[120px] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                             <button onClick={() => { setPaymentModalInvoiceId(inv.id); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-emerald-50 text-emerald-600 font-bold">Mark Paid</button>
                             <button onClick={() => { onUpdateStatus(inv.id, InvoiceStatus.SENT); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-blue-50 text-blue-600 font-bold">Mark Sent</button>
-                            <button onClick={() => { onUpdateStatus(inv.id, InvoiceStatus.DRAFT); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-gray-50 text-gray-600 font-bold">Mark Unpaid</button>
+                            <button onClick={() => { onUpdateStatus(inv.id, InvoiceStatus.UNPAID); setActiveStatusMenuId(null); }} className="text-left px-4 py-2 text-xs hover:bg-orange-50 text-orange-600 font-bold">Mark Unpaid</button>
                         </div>
                       )}
                     </div>

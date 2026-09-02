@@ -9,6 +9,7 @@ export interface AppUser {
 export enum InvoiceStatus {
   DRAFT = 'Draft',
   SENT = 'Sent',
+  UNPAID = 'Unpaid',
   PAID = 'Paid',
   OVERDUE = 'Overdue'
 }
