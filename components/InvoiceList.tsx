@@ -179,10 +179,13 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === filteredInvoices.length && filteredInvoices.length > 0) {
-      setSelectedIds([]);
+    const allFilteredSelected = filteredInvoices.length > 0 && filteredInvoices.every(inv => selectedIds.includes(inv.id));
+    if (allFilteredSelected) {
+      const filteredIds = filteredInvoices.map(inv => inv.id);
+      setSelectedIds(prev => prev.filter(id => !filteredIds.includes(id)));
     } else {
-      setSelectedIds(filteredInvoices.map(inv => inv.id));
+      const filteredIds = filteredInvoices.map(inv => inv.id);
+      setSelectedIds(prev => Array.from(new Set([...prev, ...filteredIds])));
     }
   };
 
@@ -500,7 +503,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
           return (
             <button
               key={statusOption}
-              onClick={() => { setFilterStatus(val); setSelectedIds([]); }}
+              onClick={() => setFilterStatus(val)}
               className={`px-4 py-2 text-sm font-bold rounded-lg whitespace-nowrap transition ${isActive ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'}`}
             >
               {statusOption === 'All' ? 'All Invoices' : `${statusOption} (${invoices.filter(i => i.status === statusOption).length})`}
@@ -667,7 +670,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({
                 <th className="px-6 py-4 w-12 text-center">
                     <input 
                        type="checkbox" 
-                       checked={selectedIds.length === filteredInvoices.length && filteredInvoices.length > 0} 
+                       checked={filteredInvoices.length > 0 && filteredInvoices.every(inv => selectedIds.includes(inv.id))} 
                        onChange={toggleSelectAll}
                        className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
                     />
