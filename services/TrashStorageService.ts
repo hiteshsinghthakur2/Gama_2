@@ -47,7 +47,7 @@ export const TrashStorageService = {
             }, { onConflict: 'user_id,key_id' });
         if (error) throw error;
       } catch (e) {
-        console.error("Trash Cloud Sync Error:", e);
+        console.warn("Trash Cloud Sync Error:", e);
       }
     }
   },
@@ -79,7 +79,7 @@ export const TrashStorageService = {
           return cloudItems;
         }
       } catch (e) {
-        console.error("Trash Cloud Load Error:", e);
+        console.warn("Trash Cloud Load Error:", e);
       }
     }
     return [];

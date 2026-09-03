@@ -19,7 +19,7 @@ export const getClient = () => {
       _supabase = createClient(url, key);
       return _supabase;
     } catch (e) {
-      console.error("Supabase Initialization Failed:", e);
+      console.warn("Supabase Initialization Failed:", e);
       return null;
     }
   }
@@ -73,7 +73,7 @@ const triggerWebhookSync = () => {
       window.dispatchEvent(new Event('webhook-sync-update'));
       console.log('Successfully synced to webhook');
     } catch (e) {
-      console.error('Failed to sync to webhook', e);
+      console.warn('Failed to sync to webhook', e);
       localStorage.setItem('bos_cloud_webhook_sync_status', 'error');
       localStorage.setItem('bos_cloud_webhook_last_sync', new Date().toISOString());
       window.dispatchEvent(new Event('webhook-sync-update'));
@@ -144,7 +144,7 @@ export const StorageService = {
           detail: { status: 'success', time: lastSyncTime } 
         }));
       } catch (e) {
-        console.error("Cloud Sync Error:", e);
+        console.warn("Cloud Sync Error:", e);
         syncStatus = 'error';
         window.dispatchEvent(new CustomEvent('sync-status-change', { detail: { status: 'error' } }));
       }

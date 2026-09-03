@@ -39,7 +39,7 @@ export const PurchaseStorageService = {
            }, { onConflict: 'user_id,key_id' });
         if (error) throw error;
       } catch (e) {
-        console.error("Purchase Cloud Sync Error:", e);
+        console.warn("Purchase Cloud Sync Error:", e);
       }
     }
   },
@@ -76,7 +76,7 @@ export const PurchaseStorageService = {
           return cloudInvoices;
         }
       } catch (e) {
-        console.error("Purchase Cloud Load Error:", e);
+        console.warn("Purchase Cloud Load Error:", e);
       }
     }
     return [];
