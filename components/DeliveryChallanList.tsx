@@ -1,3 +1,5 @@
+import { uploadFileToDrive } from '../services/GoogleDriveService';
+import LZString from 'lz-string';
 import React, { useState, useEffect } from 'react';
 import { DeliveryChallan, Client, DeliveryChallanStatus, UserBusinessProfile } from '../types';
 import { DocumentTemplate } from './DocumentTemplate';
@@ -49,6 +51,34 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
       case DeliveryChallanStatus.DRAFT: return 'bg-gray-100 text-gray-700';
       default: return 'bg-gray-100 text-gray-700';
     }
+  };
+
+    const handleRequestSignature = (challan: DeliveryChallan) => {
+    const client = clients.find(c => c.id === challan.clientId);
+    const data = {
+        id: challan.id,
+        number: challan.number,
+        date: challan.date,
+        clientName: client?.name || 'Unknown',
+        items: challan.items.map(i => ({ desc: i.description, qty: i.qty, amt: i.qty * i.rate })),
+    };
+    const encoded = LZString.compressToEncodedURIComponent(JSON.stringify(data));
+    const url = `${window.location.origin}/?sign_challan=1&data=${encoded}`;
+    
+    // Native share if supported
+    if (navigator.share) {
+        navigator.share({
+            title: 'Sign Delivery Challan',
+            text: `Please review and sign Delivery Challan ${challan.number}:`,
+            url: url
+        }).catch(console.error);
+    } else {
+        const waUrl = `https://wa.me/?text=${encodeURIComponent(`Please review and sign Delivery Challan ${challan.number}:
+
+${url}`)}`;
+        window.open(waUrl, '_blank');
+    }
+    setActiveMenuId(null);
   };
 
   const handleShare = (doc: DeliveryChallan, target: 'whatsapp' | 'email' | 'download') => {
@@ -336,6 +366,13 @@ const DeliveryChallanList: React.FC<DeliveryChallanListProps> = ({
                               >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
                                   Duplicate
+                              </button>
+                              <button 
+                                onClick={() => handleRequestSignature(challan)} 
+                                className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 font-bold transition border-b border-gray-50"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                  Request Signature
                               </button>
                               <button 
                                 onClick={() => { onEdit(challan); setActiveMenuId(null); }} 

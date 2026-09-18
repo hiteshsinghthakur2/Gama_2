@@ -159,6 +159,7 @@ export interface DeliveryChallan {
   date: string;
   status: DeliveryChallanStatus;
   clientId: string;
+  signatureUrl?: string;
   clientDetails?: Client; // Embedded snapshot
   items: LineItem[];
   notes?: string;

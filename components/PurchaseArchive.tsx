@@ -170,7 +170,7 @@ export const PurchaseArchive: React.FC = () => {
         };
 
         currentInvoices = [newInvoice, ...currentInvoices];
-        await PurchaseStorageService.saveAll(currentInvoices);
+        await PurchaseStorageService.syncToCloud(currentInvoices);
         setInvoices(currentInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       } catch (err) {
         console.error('Failed to parse file ' + file.name, err);
@@ -252,7 +252,7 @@ export const PurchaseArchive: React.FC = () => {
       const updated = { ...inv, comment };
       const currentInvoices = invoices.map(i => i.id === id ? updated : i);
       setInvoices(currentInvoices);
-      await PurchaseStorageService.saveAll(currentInvoices);
+      await PurchaseStorageService.syncToCloud(currentInvoices);
     } catch (e) {
       console.error("Failed to update comment", e);
     }

@@ -13,6 +13,8 @@ import {
   UserBusinessProfile,
   AppUser
 , Note} from "./types";
+import LZString from 'lz-string';
+import { DocumentSigner } from './components/DocumentSigner';
 import { INITIAL_USER_PROFILE, INDIAN_STATES } from './constants';
 import { StorageService } from './services/StorageService';
 import Dashboard from './components/Dashboard';
@@ -52,7 +54,26 @@ const STORAGE_KEYS = {
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'tools' | 'purchases' | 'settings' | 'users' | 'my-profile' | 'trash'>('dashboard');
+  const [isSignRoute, setIsSignRoute] = useState(false);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('sign_challan')) {
+        setIsSignRoute(true);
+    }
+    
+    if (urlParams.has('receive_signature')) {
+        const docId = urlParams.get('id');
+        const sigCompressed = urlParams.get('sig');
+        // We defer applying the signature until deliveryChallans are loaded.
+        // It's handled by another effect below
+    }
+  }, []);
+
+  // Handle signature reception when challans load
+
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'quotations' | 'delivery-challans' | 'leads' | 'clients' | 'tools' | 'purchases' | 'notes' | 'settings' | 'users' | 'my-profile' | 'trash'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [syncState, setSyncState] = useState(StorageService.getSyncInfo());
@@ -112,6 +133,96 @@ const App: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [deliveryChallans, setDeliveryChallans] = useState<DeliveryChallan[]>([]);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('receive_signature')) {
+        const docId = urlParams.get('id');
+        const sigCompressed = urlParams.get('sig');
+        if (docId && sigCompressed && deliveryChallans && deliveryChallans.length > 0) {
+            try {
+                const sigRaw = LZString.decompressFromEncodedURIComponent(sigCompressed);
+                if (sigRaw) {
+                    let finalSig = sigRaw;
+                    
+                    // Handle vector data payload
+                    if (sigRaw.startsWith('{')) {
+                        try {
+                            const parsed = JSON.parse(sigRaw);
+                            if (parsed.v === 1 && parsed.l) {
+                                const tempCanvas = document.createElement('canvas');
+                                tempCanvas.width = parsed.w || 400;
+                                tempCanvas.height = parsed.h || 200;
+                                const ctx = tempCanvas.getContext('2d');
+                                if (ctx) {
+                                    ctx.strokeStyle = 'black';
+                                    ctx.lineWidth = 3;
+                                    ctx.lineCap = 'round';
+                                    ctx.lineJoin = 'round';
+                                    parsed.l.forEach((line: any[]) => {
+                                        ctx.beginPath();
+                                        line.forEach((pt: number[], i: number) => {
+                                            if (i === 0) ctx.moveTo(pt[0], pt[1]);
+                                            else ctx.lineTo(pt[0], pt[1]);
+                                        });
+                                        ctx.stroke();
+                                    });
+                                    
+                                    // Trim canvas manually
+                                    let minX = tempCanvas.width, minY = tempCanvas.height, maxX = 0, maxY = 0;
+                                    parsed.l.forEach((line: any[]) => {
+                                        line.forEach((pt: number[]) => {
+                                            if (pt[0] < minX) minX = pt[0];
+                                            if (pt[1] < minY) minY = pt[1];
+                                            if (pt[0] > maxX) maxX = pt[0];
+                                            if (pt[1] > maxY) maxY = pt[1];
+                                        });
+                                    });
+                                    const pad = 10;
+                                    minX = Math.max(0, minX - pad);
+                                    minY = Math.max(0, minY - pad);
+                                    maxX = Math.min(tempCanvas.width, maxX + pad);
+                                    maxY = Math.min(tempCanvas.height, maxY + pad);
+                                    const trimWidth = Math.max(1, maxX - minX);
+                                    const trimHeight = Math.max(1, maxY - minY);
+                                    
+                                    const trimCanvas = document.createElement('canvas');
+                                    trimCanvas.width = trimWidth;
+                                    trimCanvas.height = trimHeight;
+                                    const trimCtx = trimCanvas.getContext('2d');
+                                    if (trimCtx) {
+                                        trimCtx.drawImage(tempCanvas, minX, minY, trimWidth, trimHeight, 0, 0, trimWidth, trimHeight);
+                                        finalSig = trimCanvas.toDataURL('image/png');
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error("Vector decode error", e);
+                        }
+                    }
+
+                    let updated = false;
+                    const updatedChallans = deliveryChallans.map(dc => {
+                        if (dc.id === docId && dc.signatureUrl !== finalSig) {
+                            updated = true;
+                            return { ...dc, signatureUrl: finalSig };
+                        }
+                        return dc;
+                    });
+                    
+                    if (updated) {
+                      setDeliveryChallans(updatedChallans);
+                      // Clear the URL without refreshing
+                      window.history.replaceState({}, document.title, window.location.pathname);
+                      alert("Signature successfully received and attached to the Delivery Challan!");
+                    }
+                }
+            } catch (e) {
+                console.error("Error saving signature", e);
+            }
+        }
+    }
+  }, [deliveryChallans]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -1011,6 +1122,9 @@ const App: React.FC = () => {
     return <SharedDaddysNote noteId={sharedNoteId} />;
   }
 
+  if (isSignRoute) {
+    return <DocumentSigner />;
+  }
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden relative print:h-auto print:overflow-visible print:block">
       {isSidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm no-print" onClick={() => setIsSidebarOpen(false)} />}
