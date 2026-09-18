@@ -142,7 +142,9 @@ const App: React.FC = () => {
         if (docId && sigCompressed && deliveryChallans && deliveryChallans.length > 0) {
             try {
                 const sigRaw = LZString.decompressFromEncodedURIComponent(sigCompressed);
-                if (sigRaw) {
+                if (!sigRaw) {
+                    alert("The signature link appears to be invalid or was cut off by the messaging app. Please ask the sender to try again.");
+                } else {
                     let finalSig = sigRaw;
                     
                     // Handle vector data payload
@@ -215,10 +217,24 @@ const App: React.FC = () => {
                       // Clear the URL without refreshing
                       window.history.replaceState({}, document.title, window.location.pathname);
                       alert("Signature successfully received and attached to the Delivery Challan!");
+                    } else {
+                      const dcExists = deliveryChallans.find(dc => dc.id === docId);
+                      if (!dcExists) {
+                          alert("Delivery Challan not found. Signature could not be attached.");
+                      } else {
+                          // Check if it's already signed with this exact signature
+                          if (dcExists.signatureUrl === finalSig) {
+                              alert("This signature has already been attached to the Delivery Challan.");
+                          } else {
+                              alert("Failed to attach the signature due to an unknown mismatch.");
+                          }
+                      }
+                      window.history.replaceState({}, document.title, window.location.pathname);
                     }
                 }
             } catch (e) {
                 console.error("Error saving signature", e);
+                alert("Failed to read the signature data. The link may be broken.");
             }
         }
     }
