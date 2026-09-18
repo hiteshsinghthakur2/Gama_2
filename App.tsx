@@ -139,7 +139,13 @@ const App: React.FC = () => {
     if (urlParams.has('receive_signature')) {
         const docId = urlParams.get('id');
         const sigCompressed = urlParams.get('sig');
-        if (docId && sigCompressed && deliveryChallans && deliveryChallans.length > 0) {
+        // Remove length requirement on deliveryChallans so we process even if it's the only challan!
+        if (docId && sigCompressed && deliveryChallans) {
+            const dcExists = deliveryChallans.find(dc => dc.id === docId);
+            if (!dcExists) {
+                // Not found. This could mean it hasn't loaded yet. Wait for next render.
+                return;
+            }
             try {
                 const sigRaw = LZString.decompressFromEncodedURIComponent(sigCompressed);
                 if (!sigRaw) {

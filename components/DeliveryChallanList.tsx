@@ -299,7 +299,16 @@ ${url}`)}`;
                     />
                   </td>
                     <td className="px-6 py-4 text-gray-600 truncate max-w-[150px] font-medium">{getClient(challan.clientId, challan)?.name || 'Unknown Client'}</td>
-                    <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">{new Date(challan.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</td>
+                    <td className="px-6 py-4 text-gray-500 text-xs font-bold uppercase">
+                      <div className="flex items-center gap-2">
+                        {new Date(challan.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}
+                        {challan.signatureUrl && (
+                          <span className="bg-emerald-100 text-emerald-700 p-1 rounded-full" title="Signed">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 font-medium text-gray-700">{challan.items.length} Items</td>
                     <td className="px-6 py-4">
                       <div className="relative">

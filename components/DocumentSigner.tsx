@@ -6,6 +6,7 @@ export const DocumentSigner: React.FC = () => {
     const [data, setData] = useState<any>(null);
     const [error, setError] = useState<string>('');
     const [isSuccess, setIsSuccess] = useState<boolean>(false);
+    const [savedReturnUrl, setSavedReturnUrl] = useState<string>('');
     const sigCanvas = useRef<any>(null);
 
     useEffect(() => {
@@ -55,6 +56,7 @@ export const DocumentSigner: React.FC = () => {
 
         
         const returnUrl = `${window.location.origin}/?receive_signature=1&id=${data.id}&sig=${compressedSig}`;
+        setSavedReturnUrl(returnUrl);
         
         const fallback = () => {
             const waUrl = `https://wa.me/?text=${encodeURIComponent(`I have signed the Delivery Challan ${data.number}. Click the link to save it:\n\n${returnUrl}`)}`;
@@ -97,8 +99,21 @@ export const DocumentSigner: React.FC = () => {
                     </div>
                     <h2 className="text-2xl font-bold text-gray-800 mb-3">Document Signed!</h2>
                     <p className="text-gray-600 mb-8">
-                        Your signature has been generated. If the return message didn't open automatically, please paste the link you just copied and send it back to the issuer.
+                        Your signature has been generated. If your messaging app didn't open automatically, please paste the link you just copied and send it back to the sender.
                     </p>
+                    
+                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl mb-6 text-sm text-blue-800 text-left">
+                        <strong>Testing this yourself?</strong><br/>
+                        If you are the admin testing this feature, you must open the return link to actually save the signature to your database.
+                    </div>
+
+                    <a 
+                        href={savedReturnUrl}
+                        className="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition mb-3"
+                    >
+                        Apply Signature Now
+                    </a>
+
                     <button 
                         onClick={() => window.close()}
                         className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 rounded-xl transition"
